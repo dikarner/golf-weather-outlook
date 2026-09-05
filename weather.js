@@ -7,6 +7,34 @@ export const MODELS = [
   { id: "ecmwf_ifs025", short: "IFS", name: "ECMWF IFS" },
 ];
 
+export const MIX_ID = "mix";
+
+/**
+ * Relative mix weights by days ahead (0 = today in Vienna).
+ * 0 = leave that model out of the mix (it still appears under + All models).
+ * Native ranges via Open-Meteo: D2 ~2 d, ALADIN ~3 d, ICON-EU ~5 d, IFS ~15 d.
+ *
+ *  today  +1  +2  +3  +4  +5   then +6… IFS only
+ * D2    5   4   1   —   —   —
+ * ALD   3   3   3   1   —   —
+ * EU    2   2   4   4   4   2
+ * IFS   1   1   2   2   3   4
+ */
+const WEIGHTS = {
+  icon_d2: [5, 4, 1, 0, 0, 0],
+  icon_eu: [2, 2, 4, 4, 4, 2],
+  chmi_aladin_central_europe_2km: [3, 3, 3, 1, 0, 0],
+  ecmwf_ifs025: [1, 1, 2, 2, 3, 4],
+};
+
+export function modelWeight(modelId, daysAhead) {
+  const row = WEIGHTS[modelId];
+  if (!row) return 0;
+  const d = Math.max(0, daysAhead);
+  if (d >= 6) return modelId === "ecmwf_ifs025" ? 1 : 0;
+  return row[d] ?? 0;
+}
+
 export const ROUND_HOURS = 5;
 export const TZ = "Europe/Vienna";
 
@@ -56,6 +84,7 @@ export async function fetchForecast(lat, lon) {
 }
 
 export function modelById(id) {
+  if (id === MIX_ID) return { id: MIX_ID, short: "Mix", name: "Mix" };
   return MODELS.find((m) => m.id === id);
 }
 
@@ -122,6 +151,13 @@ export function readHourPreferred(data, isoHour) {
   return readHour(data, isoHour, model);
 }
 
+export function readHourMix(data, isoHour, today) {
+  const ahead = daysAhead(isoHour.slice(0, 10), today);
+  const parts = collectParts((id) => readHour(data, isoHour, id), ahead);
+  if (!parts.length) return null;
+  return blendHour(parts, isoHour);
+}
+
 function dailyIndex(data, dateStr) {
   return (data.daily?.time || []).indexOf(dateStr);
 }
@@ -162,6 +198,100 @@ export function readDayPreferred(data, dateStr) {
   return null;
 }
 
+export function readDayMix(data, dateStr, today) {
+  const ahead = daysAhead(dateStr, today);
+  const parts = collectParts((id) => readDay(data, dateStr, id), ahead);
+  if (!parts.length) return null;
+  return blendDay(parts, dateStr);
+}
+
+function collectParts(readOne, ahead) {
+  const parts = [];
+  for (const m of MODELS) {
+    const row = readOne(m.id);
+    if (!row) continue;
+    const w = modelWeight(m.id, ahead);
+    if (w > 0) parts.push({ w, row });
+  }
+  if (parts.length) return parts;
+  for (const m of MODELS) {
+    const row = readOne(m.id);
+    if (row) parts.push({ w: 1, row });
+  }
+  return parts;
+}
+
+function weightedMean(parts, getter) {
+  let s = 0;
+  let w = 0;
+  for (const p of parts) {
+    const v = getter(p.row);
+    if (v == null || Number.isNaN(Number(v))) continue;
+    s += Number(v) * p.w;
+    w += p.w;
+  }
+  return w ? s / w : null;
+}
+
+function vectorDir(parts, getter) {
+  let sx = 0;
+  let sy = 0;
+  let w = 0;
+  for (const p of parts) {
+    const deg = getter(p.row);
+    if (deg == null || Number.isNaN(Number(deg))) continue;
+    const rad = (Number(deg) * Math.PI) / 180;
+    sx += p.w * Math.sin(rad);
+    sy += p.w * Math.cos(rad);
+    w += p.w;
+  }
+  if (!w) return null;
+  return ((Math.atan2(sx, sy) * 180) / Math.PI + 360) % 360;
+}
+
+function pickCode(parts) {
+  const stormPart = parts.find((p) => isStorm(p.row.code));
+  if (stormPart) return stormPart.row.code;
+  const fogPart = parts.find((p) => isFog(p.row.code));
+  if (fogPart) return fogPart.row.code;
+  return parts.reduce((a, b) => (b.w > a.w ? b : a)).row.code;
+}
+
+function blendHour(parts, isoHour) {
+  const one = parts.length === 1;
+  return {
+    time: isoHour,
+    model: one ? parts[0].row.model : MIX_ID,
+    models: parts.map((p) => p.row.model),
+    temp: weightedMean(parts, (r) => r.temp),
+    feels: weightedMean(parts, (r) => r.feels),
+    precip: weightedMean(parts, (r) => r.precip),
+    code: pickCode(parts),
+    wind: weightedMean(parts, (r) => r.wind),
+    gust: weightedMean(parts, (r) => r.gust),
+    dir: vectorDir(parts, (r) => r.dir),
+  };
+}
+
+function blendDay(parts, dateStr) {
+  const one = parts.length === 1;
+  const top = parts.reduce((a, b) => (b.w > a.w ? b : a));
+  const sun = parts.find((p) => p.row.sunrise)?.row;
+  return {
+    date: dateStr,
+    model: one ? parts[0].row.model : MIX_ID,
+    models: parts.map((p) => p.row.model),
+    tmax: weightedMean(parts, (r) => r.tmax),
+    tmin: weightedMean(parts, (r) => r.tmin),
+    precip: weightedMean(parts, (r) => r.precip),
+    code: pickCode(parts),
+    wind: weightedMean(parts, (r) => r.wind),
+    gust: weightedMean(parts, (r) => r.gust),
+    sunrise: sun?.sunrise || top.row.sunrise,
+    sunset: sun?.sunset || top.row.sunset,
+  };
+}
+
 export function hoursOfDay(data, dateStr) {
   return (data.hourly?.time || []).filter((t) => t.startsWith(dateStr));
 }
@@ -179,6 +309,7 @@ export function isFog(code) {
   return code === 45 || code === 48;
 }
 
+/** Hour midpoint vs sunrise/sunset. No sun icon at night. */
 export function isNightHour(isoHour, sunrise, sunset) {
   if (!isoHour) return false;
   const mid = `${isoHour.slice(0, 13)}:30`;
@@ -187,6 +318,10 @@ export function isNightHour(isoHour, sunrise, sunset) {
   return h < 6 || h >= 19;
 }
 
+/**
+ * sun | suncloud | moon | mooncloud | cloud | fog
+ * Clear night is moon, never sun.
+ */
 export function skyKind(code, night) {
   if (isFog(code)) return "fog";
   if (code == null || code <= 1) return night ? "moon" : "sun";
@@ -194,6 +329,7 @@ export function skyKind(code, night) {
   return "cloud";
 }
 
+/** Outlook row: daytime sky; fog wins if it shows up in the morning. */
 export function daySkyKind(hours, sunrise, sunset) {
   if (!hours?.length) return "sun";
   const morning = hours.filter((h) => {
@@ -239,6 +375,7 @@ export function windLine(speed, gust, dir) {
   return c ? `${c} ${s}${g}` : `${s}${g}`;
 }
 
+/** Floor tee time to hour slots that overlap [tee, tee+duration). */
 export function roundSlots(dateStr, timeStr, durationHours = ROUND_HOURS) {
   const [hh, mm] = timeStr.split(":").map(Number);
   const startMin = hh * 60 + mm;
@@ -283,6 +420,14 @@ export function todayInVienna() {
   }).format(new Date());
 }
 
+export function daysAhead(dateStr, today = todayInVienna()) {
+  const toUtc = (s) => {
+    const [y, m, d] = s.split("-").map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((toUtc(dateStr) - toUtc(today)) / 86400000);
+}
+
 export function formatDayHeading(dateStr) {
   const today = todayInVienna();
   const tomorrow = shiftDate(today, 1);
@@ -320,14 +465,14 @@ export function summarizeHours(rows) {
     tmin: Math.min(...temps),
     tmax: Math.max(...temps),
     teeTemp: live[0].temp,
-    models: [...new Set(live.map((r) => r.model))],
+    models: [...new Set(live.flatMap((r) => r.models || [r.model]))],
   };
 }
 
 export function minutelyForHour(data, isoHour, modelId = "icon_d2") {
   const times = data.minutely_15?.time || [];
   const precip = col(data.minutely_15, "precipitation", modelId) || [];
-  const prefix = isoHour.slice(0, 13);
+  const prefix = isoHour.slice(0, 13); // YYYY-MM-DDTHH
   const pts = [];
   times.forEach((t, i) => {
     if (t.startsWith(prefix) && precip[i] != null) pts.push(precip[i]);
