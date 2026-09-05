@@ -420,6 +420,21 @@ export function todayInVienna() {
   }).format(new Date());
 }
 
+export function hourInVienna(at = new Date()) {
+  const h = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TZ,
+    hour: "2-digit",
+    hourCycle: "h23",
+  })
+    .formatToParts(at)
+    .find((p) => p.type === "hour")?.value;
+  return String(h ?? "00").padStart(2, "0");
+}
+
+export function daySheetFocusHour(dateStr, today = todayInVienna(), hour = hourInVienna()) {
+  return dateStr === today ? `${hour}:00` : "07:00";
+}
+
 export function daysAhead(dateStr, today = todayInVienna()) {
   const toUtc = (s) => {
     const [y, m, d] = s.split("-").map(Number);
@@ -472,7 +487,7 @@ export function summarizeHours(rows) {
 export function minutelyForHour(data, isoHour, modelId = "icon_d2") {
   const times = data.minutely_15?.time || [];
   const precip = col(data.minutely_15, "precipitation", modelId) || [];
-  const prefix = isoHour.slice(0, 13); // YYYY-MM-DDTHH
+  const prefix = isoHour.slice(0, 13);
   const pts = [];
   times.forEach((t, i) => {
     if (t.startsWith(prefix) && precip[i] != null) pts.push(precip[i]);
