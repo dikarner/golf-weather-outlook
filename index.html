@@ -103,12 +103,25 @@
       </p>
     </dialog>
 
-    <dialog id="day-sheet">
+    <dialog id="edit-place">
+      <div class="sheet-head">
+        <h2 data-i18n="editPlace">Ort bearbeiten</h2>
+        <button class="btn ghost" data-act="close" type="button" data-i18n="close">Schließen</button>
+      </div>
+      <input type="hidden" id="edit-id" />
+      <label class="field"><span data-i18n="nameToShow">Anzeigename</span><input id="edit-name" /></label>
+      <label class="field"><span data-i18n="clubName">Golfclub / Untertitel</span><input id="edit-club" /></label>
+      <p><button class="btn primary" id="edit-save" type="button" data-i18n="save">Speichern</button></p>
+    </dialog>
+
+    <dialog id="day-sheet" class="hours-dialog">
       <div class="sheet-head">
         <h2 id="day-sheet-title" data-i18n="day">Tag</h2>
         <button class="btn ghost" data-act="close-day" type="button" data-i18n="close">Schließen</button>
       </div>
-      <div id="day-sheet-body"></div>
+      <div id="day-sheet-summary"></div>
+      <div id="day-hour-head" class="hour-row hour-head" hidden></div>
+      <div id="day-sheet-body" class="hour-scroll"></div>
     </dialog>
 
     <dialog id="models-info">
@@ -119,12 +132,14 @@
       <div id="models-info-body" class="model-info"></div>
     </dialog>
 
-    <dialog id="round-sheet">
+    <dialog id="round-sheet" class="hours-dialog">
       <div class="sheet-head">
         <h2 id="round-sheet-title" data-i18n="round">Runde</h2>
         <button class="btn ghost" data-act="close-round" type="button" data-i18n="close">Schließen</button>
       </div>
-      <div id="round-sheet-body"></div>
+      <div id="round-sheet-summary"></div>
+      <div id="round-hour-head" class="hour-row hour-head" hidden></div>
+      <div id="round-sheet-body" class="hour-scroll"></div>
     </dialog>
 
     <script type="module" src="./app.js"></script>
