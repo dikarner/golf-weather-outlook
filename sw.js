@@ -1,4 +1,4 @@
-const CACHE = "golf-outlook-v3";
+const CACHE = "golf-outlook-v4";
 const SHELL = [
   "./",
   "./index.html",
