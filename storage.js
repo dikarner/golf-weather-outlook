@@ -7,6 +7,7 @@ export const SEED_COURSES = [
     club: "Diamond Country Club",
     lat: 48.3152321,
     lon: 15.911922,
+    golf: true,
   },
   {
     id: "lengenfeld",
@@ -14,6 +15,7 @@ export const SEED_COURSES = [
     club: "Golfclub Lengenfeld",
     lat: 48.4729172,
     lon: 15.6226387,
+    golf: true,
   },
   {
     id: "tatzmannsdorf",
@@ -21,6 +23,7 @@ export const SEED_COURSES = [
     club: "Reiters Golf & Country Club",
     lat: 47.3193836,
     lon: 16.2329624,
+    golf: true,
   },
   {
     id: "ferschnitz",
@@ -28,6 +31,7 @@ export const SEED_COURSES = [
     club: "Swarco Amstetten–Ferschnitz",
     lat: 48.0864747,
     lon: 14.9765349,
+    golf: true,
   },
   {
     id: "ernegg",
@@ -35,6 +39,7 @@ export const SEED_COURSES = [
     club: "Golfclub Schloss Ernegg",
     lat: 48.0690406,
     lon: 15.0645964,
+    golf: true,
   },
   {
     id: "goldegg",
@@ -42,6 +47,7 @@ export const SEED_COURSES = [
     club: "GC St. Pölten – Schloss Goldegg",
     lat: 48.2334269,
     lon: 15.5304729,
+    golf: true,
   },
 ];
 
@@ -62,6 +68,11 @@ export function loadState() {
     if (!Array.isArray(parsed.courses) || !parsed.courses.length) {
       parsed.courses = structuredClone(SEED_COURSES);
     }
+    const seedIds = new Set(SEED_COURSES.map((s) => s.id));
+    parsed.courses = parsed.courses.map((c) => ({
+      ...c,
+      golf: typeof c.golf === "boolean" ? c.golf : seedIds.has(c.id),
+    }));
     if (!parsed.courses.some((c) => c.id === parsed.activeId)) {
       parsed.activeId = parsed.courses[0].id;
     }
