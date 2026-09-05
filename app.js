@@ -18,6 +18,7 @@ import {
   windLine,
   roundSlots,
   todayInVienna,
+  daySheetFocusHour,
   formatDayHeading,
   formatClock,
   summarizeHours,
@@ -218,7 +219,7 @@ function hourLine(row, sub, labelMix) {
     </div>`;
   }
   const mixMark = labelMix ? badge(row.model === MIX_ID ? MIX_ID : row.model) : "";
-  return `<div class="hour-row">
+  return `<div class="hour-row" data-hour="${formatClock(row.time)}">
     <span>${formatClock(row.time)}</span>
     ${skyIcon(hourSky(row), 18)}
     <span class="t">${fmt1(row.temp)}°${mixMark}</span>
@@ -243,6 +244,18 @@ function sparkline(isoHours) {
   return `<div class="spark" title="15-min rain ICON-D2">${bars}</div>`;
 }
 
+function hourHeadHtml() {
+  return `<span>${t("colTime")}</span><span></span><span>${t("colTemp")}</span><span>${t("colRain")}</span><span>${t("colWind")}</span>`;
+}
+
+function scrollHourList(wrap, hhmm) {
+  if (!wrap) return;
+  const rows = [...wrap.querySelectorAll("[data-hour]")];
+  const target = rows.find((el) => el.dataset.hour === hhmm) || rows.find((el) => el.dataset.hour >= hhmm);
+  if (!target) return;
+  wrap.scrollTop = Math.max(0, target.offsetTop);
+}
+
 function renderDaySheet() {
   const dlg = $("day-sheet");
   if (!openDay || !forecast) {
@@ -254,12 +267,15 @@ function renderDaySheet() {
   const expand = modelsOpen();
   const htmlHours = hours.map((iso) => hourBlock(iso, expand)).join("");
   $("day-sheet-title").textContent = formatDayHeading(openDay);
-  $("day-sheet-body").innerHTML = `
+  $("day-sheet-summary").innerHTML = `
     <p class="hint">${row ? `${fmt1(row.tmax)}° / ${fmt1(row.tmin)}° · ${rainStory(row.precip)}` : ""}${badge(row?.model)}</p>
     ${openDay === todayInVienna() ? sparkline(hours.slice(0, 8)) : ""}
-    ${htmlHours || `<p>${t("noHourly")}</p>`}
   `;
+  $("day-hour-head").hidden = !htmlHours;
+  $("day-hour-head").innerHTML = htmlHours ? hourHeadHtml() : "";
+  $("day-sheet-body").innerHTML = htmlHours || `<p>${t("noHourly")}</p>`;
   if (!dlg.open) dlg.showModal();
+  requestAnimationFrame(() => scrollHourList($("day-sheet-body"), daySheetFocusHour(openDay)));
 }
 
 function renderRoundSheet() {
@@ -275,11 +291,13 @@ function renderRoundSheet() {
   const today = todayInVienna();
   const spark = tee.date === today ? sparkline(win.slots) : "";
   $("round-sheet-title").textContent = `${t("round")} ${tee.time}`;
-  $("round-sheet-body").innerHTML = `
+  $("round-sheet-summary").innerHTML = `
     <p class="hint">${formatDayHeading(tee.date)} ${tee.time}–${win.endLabel.slice(-5)} · ${t("covering")} ${formatClock(win.slots[0])}–${formatClock(win.slots.at(-1))}</p>
     ${spark}
-    ${rows || `<p>${t("noRoundData")}</p>`}
   `;
+  $("round-hour-head").hidden = !rows;
+  $("round-hour-head").innerHTML = rows ? hourHeadHtml() : "";
+  $("round-sheet-body").innerHTML = rows || `<p>${t("noRoundData")}</p>`;
 }
 
 async function refresh(force) {
@@ -339,10 +357,13 @@ function renderPlaces() {
             ${t("golfPlace")}
           </label>
         </div>
-        <button class="btn" data-act="up" data-i="${i}" ${i === 0 ? "disabled" : ""}>↑</button>
-        <button class="btn" data-act="down" data-i="${i}" ${i === state.courses.length - 1 ? "disabled" : ""}>↓</button>
-        <button class="btn" data-act="use">${t("open")}</button>
-        <button class="btn danger" data-act="del">✕</button>
+        <div class="row-actions">
+          <button class="btn" data-act="up" data-i="${i}" ${i === 0 ? "disabled" : ""}>↑</button>
+          <button class="btn" data-act="down" data-i="${i}" ${i === state.courses.length - 1 ? "disabled" : ""}>↓</button>
+          <button class="btn" data-act="edit-place">${t("edit")}</button>
+          <button class="btn" data-act="use">${t("open")}</button>
+          <button class="btn danger" data-act="del">✕</button>
+        </div>
       </div>`;
     })
     .join("");
@@ -507,6 +528,15 @@ $("places-list").addEventListener("click", (e) => {
   const id = row.dataset.id;
   const act = e.target.closest("[data-act]")?.dataset.act;
   const i = state.courses.findIndex((c) => c.id === id);
+  if (act === "edit-place") {
+    const c = state.courses[i];
+    if (!c) return;
+    $("edit-id").value = c.id;
+    $("edit-name").value = c.name;
+    $("edit-club").value = c.club || "";
+    $("edit-place").showModal();
+    return;
+  }
   if (act === "use") {
     $("places").close();
     selectCourse(id);
@@ -551,6 +581,68 @@ function placeWhere(h) {
   return bits.join(" · ");
 }
 
+function kmBetween(aLat, aLon, bLat, bLon) {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLon = ((bLon - aLon) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+
+async function searchGolfPhoton(q, everywhere) {
+  const params = new URLSearchParams({
+    q,
+    limit: "8",
+    lang: lang === "de" ? "de" : "en",
+  });
+  if (!everywhere) params.set("bbox", "9.5,46.38,17.2,49.02");
+  const data = await fetch(`https://photon.komoot.io/api/?${params}`).then((r) => r.json());
+  return (data.features || [])
+    .filter((f) => f.properties?.osm_value === "golf_course" && f.properties?.name)
+    .map((f) => {
+      const [lon, lat] = f.geometry.coordinates;
+      const p = f.properties;
+      const where = [p.city, p.county, p.state, p.country].filter(Boolean).join(" · ");
+      return { name: p.name, lat, lon, where, golf: true };
+    });
+}
+
+async function nearestGolfCourse(lat, lon) {
+  const q = `[out:json][timeout:8];nwr["leisure"="golf_course"](around:8000,${lat},${lon});out tags center;`;
+  const res = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+    body: `data=${encodeURIComponent(q)}`,
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  let best = null;
+  for (const e of data.elements || []) {
+    const name = e.tags?.name;
+    const elat = e.lat ?? e.center?.lat;
+    const elon = e.lon ?? e.center?.lon;
+    if (!name || elat == null || elon == null) continue;
+    const km = kmBetween(lat, lon, elat, elon);
+    if (!best || km < best.km) best = { name, km };
+  }
+  return best;
+}
+
+function samePoint(a, b) {
+  return Math.abs(a.lat - b.lat) < 0.002 && Math.abs(a.lon - b.lon) < 0.002;
+}
+
+function hitButton(h) {
+  const golf = h.golf ? ` · ${t("golfHit")}` : "";
+  const where = h.where || "";
+  return `<button class="search-hit" type="button" data-lat="${h.lat}" data-lon="${h.lon}" data-name="${encodeURIComponent(h.name)}" data-where="${encodeURIComponent(where)}" data-golf="${h.golf ? "1" : ""}">
+        <strong>${h.name}</strong><br>
+        <span class="hint">${where}${golf}</span>
+      </button>`;
+}
+
 async function searchPlaces(everywhere) {
   const q = $("add-search").value.trim();
   if (!q) return;
@@ -562,42 +654,79 @@ async function searchPlaces(everywhere) {
     format: "json",
   });
   if (!everywhere) params.set("country", "AT");
-  const data = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?${params}`
-  ).then((r) => r.json());
-  let hits = data.results || [];
-  if (!hits.length && !everywhere) {
+  const [geoRes, clubRes] = await Promise.allSettled([
+    fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`).then((r) => r.json()),
+    searchGolfPhoton(q, everywhere),
+  ]);
+  const geo = geoRes.status === "fulfilled" ? geoRes.value : { results: [] };
+  const clubs = clubRes.status === "fulfilled" ? clubRes.value : [];
+  let places = (geo.results || []).map((h) => ({
+    name: h.name,
+    lat: h.latitude,
+    lon: h.longitude,
+    where: placeWhere(h),
+    golf: false,
+  }));
+  if (!places.length && !clubs.length && !everywhere) {
     $("add-results").textContent = t("nothingAt");
     return searchPlaces(true);
   }
-  if (!hits.length) {
+  const merged = [];
+  for (const c of clubs) {
+    if (!merged.some((m) => samePoint(m, c))) merged.push(c);
+  }
+  for (const p of places) {
+    if (!merged.some((m) => samePoint(m, p))) merged.push(p);
+  }
+  if (!merged.length) {
     $("add-results").textContent = t("noMatches");
     return;
   }
-  $("add-results").innerHTML = hits
-    .map((h) => {
-      const where = placeWhere(h);
-      return `<button class="search-hit" type="button" data-lat="${h.latitude}" data-lon="${h.longitude}" data-name="${encodeURIComponent(h.name)}" data-where="${encodeURIComponent(where)}">
-        <strong>${h.name}</strong><br>
-        <span class="hint">${where}</span>
-      </button>`;
-    })
-    .join("");
+  $("add-results").innerHTML = merged.map(hitButton).join("");
 }
 
-$("add-results").addEventListener("click", (e) => {
+$("add-results").addEventListener("click", async (e) => {
   const hit = e.target.closest(".search-hit");
   if (!hit) return;
   const name = decodeURIComponent(hit.dataset.name);
-  const where = decodeURIComponent(hit.dataset.where || "");
+  let where = decodeURIComponent(hit.dataset.where || "");
+  const lat = Number(hit.dataset.lat);
+  const lon = Number(hit.dataset.lon);
+  const isGolf = hit.dataset.golf === "1";
   $("add-lat").value = hit.dataset.lat;
   $("add-lon").value = hit.dataset.lon;
   $("add-where").value = where;
   if (!$("add-name").value) $("add-name").value = name;
+  if (isGolf) $("add-golf").checked = true;
   $("add-picked").hidden = false;
   $("add-picked").textContent = where ? `${name} — ${where}` : name;
   $("add-results").querySelectorAll(".search-hit").forEach((b) => b.classList.remove("picked"));
   hit.classList.add("picked");
+  if (!isGolf && Number.isFinite(lat) && Number.isFinite(lon)) {
+    try {
+      const golf = await nearestGolfCourse(lat, lon);
+      if (golf && golf.km <= 6) {
+        $("add-where").value = golf.name;
+        $("add-picked").textContent = t("golfNearby", { name: golf.name });
+        if (golf.km <= 2.5) $("add-golf").checked = true;
+      }
+    } catch {
+      /* OSM optional */
+    }
+  }
+});
+
+$("edit-save").addEventListener("click", () => {
+  const id = $("edit-id").value;
+  const c = state.courses.find((x) => x.id === id);
+  const name = $("edit-name").value.trim();
+  if (!c || !name) return;
+  c.name = name;
+  c.club = $("edit-club").value.trim();
+  persist();
+  $("edit-place").close();
+  renderPlaces();
+  render();
 });
 
 $("add-save").addEventListener("click", () => {
