@@ -93,7 +93,8 @@ function render() {
   const srcShort = src ? modelById(src)?.short : "—";
   let meta = status === "loading" ? t("loading") : `${srcShort} · ${age}`;
   if (status === "cached") meta += ` · ${t("cached")}`;
-  if (status === "error") meta = `${t("refreshFail")} · ${age ? `${t("cached")} ${age}` : t("noData")}`;
+  if (status === "error")
+    meta = `${t("refreshFail")} · ${age ? `${t("cached")} ${age}` : t("noData")}`;
   $("meta").textContent = meta;
   $("models-toggle").textContent = modelsOpen() ? t("hideModels") : t("allModels");
   renderRound();
@@ -273,7 +274,7 @@ function renderRoundSheet() {
   const spark = tee.date === today ? sparkline(win.slots) : "";
   $("round-sheet-title").textContent = `${t("round")} ${tee.time}`;
   $("round-sheet-body").innerHTML = `
-    <p class="hint">${formatDayHeading(tee.date)} ${tee.time}–${win.endLabel.slice(-5)}</p>
+    <p class="hint">${formatDayHeading(tee.date)} ${tee.time}–${win.endLabel.slice(-5)} · ${t("covering")} ${formatClock(win.slots[0])}–${formatClock(win.slots.at(-1))}</p>
     ${spark}
     ${rows || `<p>${t("noRoundData")}</p>`}
   `;
@@ -510,7 +511,7 @@ async function searchPlaces(everywhere) {
   const data = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?${params}`
   ).then((r) => r.json());
-  const hits = data.results || [];
+  let hits = data.results || [];
   if (!hits.length && !everywhere) {
     $("add-results").textContent = t("nothingAt");
     return searchPlaces(true);
