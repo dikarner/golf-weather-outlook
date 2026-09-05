@@ -1,3 +1,5 @@
+import { t, locale } from "./i18n.js";
+
 let map;
 let overlay;
 let frames = [];
@@ -32,7 +34,7 @@ export async function showRadar(el, lat, lon) {
   try {
     await loadLeaflet();
   } catch {
-    label.textContent = "Radar map failed to load";
+    label.textContent = t("radarFail");
     return;
   }
   if (map) {
@@ -68,7 +70,7 @@ export async function showRadar(el, lat, lon) {
     url: `${meta.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,
   }));
   if (!frames.length) {
-    label.textContent = "No radar frames";
+    label.textContent = t("radarNone");
     return;
   }
   frameIndex = Math.max(0, past.length - 1);
@@ -89,9 +91,10 @@ export async function showRadar(el, lat, lon) {
     });
     overlay.addTo(map);
     const d = new Date(f.time * 1000);
-    label.textContent = d.toLocaleTimeString("en-GB", {
+    label.textContent = d.toLocaleTimeString(locale, {
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
       timeZone: "Europe/Vienna",
     });
   }
