@@ -32,6 +32,7 @@ import {
   loadForecast,
 } from "./storage.js";
 import { showRadar, hideRadar } from "./radar.js";
+import { t, lang, applyStaticI18n } from "./i18n.js";
 
 const state = loadState();
 let forecast = null;
@@ -90,11 +91,11 @@ function render() {
   const age = forecast ? runAgeLabel(forecast.fetchedAt) : "";
   const src = forecast ? preferredModelOnDay(forecast, todayInVienna()) : null;
   const srcShort = src ? modelById(src)?.short : "—";
-  let meta = status === "loading" ? "Loading…" : `${srcShort} · ${age}`;
-  if (status === "cached") meta += " · cached";
-  if (status === "error") meta = "Could not refresh · " + (age ? `cached ${age}` : "no data");
+  let meta = status === "loading" ? t("loading") : `${srcShort} · ${age}`;
+  if (status === "cached") meta += ` · ${t("cached")}`;
+  if (status === "error") meta = `${t("refreshFail")} · ${age ? `${t("cached")} ${age}` : t("noData")}`;
   $("meta").textContent = meta;
-  $("models-toggle").textContent = modelsOpen() ? "Hide models" : "+ All models";
+  $("models-toggle").textContent = modelsOpen() ? t("hideModels") : t("allModels");
   renderRound();
   renderOutlook();
   renderDaySheet();
@@ -106,10 +107,10 @@ function renderRound() {
   const box = $("round-body");
   if (!tee?.date || !tee?.time) {
     box.innerHTML = `
-      <p class="round-summary">No tee time set</p>
-      <p class="round-sub">Enter a date and 24h time, down to the minute.</p>
+      <p class="round-summary">${t("noTee")}</p>
+      <p class="round-sub">${t("noTeeHint")}</p>
       <div class="round-actions">
-        <button class="btn primary" data-act="edit-tee">Set tee time</button>
+        <button class="btn primary" data-act="edit-tee">${t("setTee")}</button>
       </div>`;
     return;
   }
@@ -121,13 +122,13 @@ function renderRound() {
   const day = formatDayHeading(tee.date);
   const endClock = win.endLabel.slice(-5);
   let summary = `${day} ${tee.time}–${endClock}`;
-  let sub = `${ROUND_HOURS} h round · hours ${formatClock(win.slots[0])}–${formatClock(win.slots.at(-1))}`;
+  let sub = `${ROUND_HOURS} ${t("hRound")} · ${t("hours")} ${formatClock(win.slots[0])}–${formatClock(win.slots.at(-1))}`;
   let sky = "";
   if (sum) {
     const kind = rows.some((r) => isFog(r.code)) ? "fog" : hourSky(rows[0]);
     sky = skyIcon(kind, 26);
-    sub = `${rainStory(sum.rain)} · ${fmt1(sum.teeTemp)}° at tee · ${windLine(sum.wind, sum.gust)}`;
-    if (sum.storm) sub += ` · <span class="storm">storm</span>`;
+    sub = `${rainStory(sum.rain)} · ${fmt1(sum.teeTemp)}° ${t("atTee")} · ${windLine(sum.wind, sum.gust)}`;
+    if (sum.storm) sub += ` · <span class="storm">${t("storm")}</span>`;
     if (sum.models.some((m) => m !== "icon_d2")) {
       sub += badge(sum.models[0]);
     }
@@ -136,14 +137,14 @@ function renderRound() {
     <p class="round-summary">${sky}${summary}</p>
     <p class="round-sub">${sub}</p>
     <div class="round-actions">
-      <button class="btn primary" data-act="open-round">Round window</button>
-      <button class="btn" data-act="edit-tee">Edit</button>
+      <button class="btn primary" data-act="open-round">${t("roundWindow")}</button>
+      <button class="btn" data-act="edit-tee">${t("edit")}</button>
     </div>`;
 }
 
 function renderOutlook() {
   if (!forecast) {
-    $("outlook").innerHTML = `<div class="card">${status === "loading" ? "Loading outlook…" : "No forecast yet."}</div>`;
+    $("outlook").innerHTML = `<div class="card">${status === "loading" ? t("loadingOutlook") : t("noForecast")}</div>`;
     return;
   }
   const dates = outlookDates(forecast, 16);
@@ -162,22 +163,23 @@ function renderOutlook() {
         .filter(Boolean)
         .join(" · ");
       const kind = daySkyKind(hours, row.sunrise, row.sunset);
+      const stormMark = storm ? ` · <span class="storm">${t("storm")}</span>` : "";
       return `<button class="day" data-day="${d}">
         <div>
           <div class="when">${formatDayHeading(d)}${badge(row.model)}</div>
         </div>
         ${skyIcon(kind, 28)}
-        <div class="story">${story}${storm ? ' · <span class="storm">storm</span>' : ""}</div>
+        <div class="story">${story}${stormMark}</div>
         <div class="temps">${fmt1(row.tmax)}° / ${fmt1(row.tmin)}°</div>
       </button>`;
     })
     .join("");
   $("outlook").innerHTML = `
     <div class="toolbar">
-      <h2>Outlook</h2>
+      <h2>${t("outlook")}</h2>
     </div>
     ${daysHtml}
-    ${extra ? `<div class="toolbar"><button class="btn" data-act="further">Further days</button></div>` : ""}
+    ${extra ? `<div class="toolbar"><button class="btn" data-act="further">${t("further")}</button></div>` : ""}
   `;
 }
 
@@ -202,8 +204,8 @@ function hourBlock(iso, expand) {
 }
 
 function hourLine(row, sub) {
-  const rain = row.precip != null && row.precip >= 0.05 ? fmtPrecipLocal(row.precip) : "dry";
-  const storm = isStorm(row.code) ? ' <span class="storm">storm</span>' : "";
+  const rain = row.precip != null && row.precip >= 0.05 ? fmtPrecipLocal(row.precip) : t("dry");
+  const storm = isStorm(row.code) ? ` <span class="storm">${t("storm")}</span>` : "";
   if (sub) {
     return `<div class="hour-row sub">
       <span></span>
@@ -252,7 +254,7 @@ function renderDaySheet() {
   $("day-sheet-body").innerHTML = `
     <p class="hint">${row ? `${fmt1(row.tmax)}° / ${fmt1(row.tmin)}° · ${rainStory(row.precip)}` : ""}${badge(row?.model)}</p>
     ${openDay === todayInVienna() ? sparkline(hours.slice(0, 8)) : ""}
-    ${htmlHours || "<p>No hourly data.</p>"}
+    ${htmlHours || `<p>${t("noHourly")}</p>`}
   `;
   if (!dlg.open) dlg.showModal();
 }
@@ -269,11 +271,11 @@ function renderRoundSheet() {
   const rows = win.slots.map((iso) => hourBlock(iso, expand)).join("");
   const today = todayInVienna();
   const spark = tee.date === today ? sparkline(win.slots) : "";
-  $("round-sheet-title").textContent = `Round ${tee.time}`;
+  $("round-sheet-title").textContent = `${t("round")} ${tee.time}`;
   $("round-sheet-body").innerHTML = `
-    <p class="hint">${formatDayHeading(tee.date)} ${tee.time}–${win.endLabel.slice(-5)} · covering ${formatClock(win.slots[0])}–${formatClock(win.slots.at(-1))}</p>
+    <p class="hint">${formatDayHeading(tee.date)} ${tee.time}–${win.endLabel.slice(-5)}</p>
     ${spark}
-    ${rows || "<p>No model data for this window yet.</p>"}
+    ${rows || `<p>${t("noRoundData")}</p>`}
   `;
 }
 
@@ -317,14 +319,14 @@ function selectCourse(id) {
   openDay = null;
   radarOn = false;
   hideRadar($("radar-wrap"));
-  $("radar-btn").textContent = "Radar";
+  $("radar-btn").textContent = t("radar");
   refresh(false);
 }
 
 function renderPlaces() {
   $("places-list").innerHTML = state.courses
     .map((c, i) => {
-      const def = c.id === state.activeId ? " · current" : "";
+      const def = c.id === state.activeId ? ` · ${t("current")}` : "";
       return `<div class="list-item" data-id="${c.id}">
         <div class="grow">
           <div class="name">${c.name}</div>
@@ -332,7 +334,7 @@ function renderPlaces() {
         </div>
         <button class="btn" data-act="up" data-i="${i}" ${i === 0 ? "disabled" : ""}>↑</button>
         <button class="btn" data-act="down" data-i="${i}" ${i === state.courses.length - 1 ? "disabled" : ""}>↓</button>
-        <button class="btn" data-act="use">Open</button>
+        <button class="btn" data-act="use">${t("open")}</button>
         <button class="btn danger" data-act="del">✕</button>
       </div>`;
     })
@@ -427,7 +429,7 @@ document.addEventListener("click", (e) => {
   }
   if (act === "radar") {
     radarOn = !radarOn;
-    $("radar-btn").textContent = radarOn ? "Hide radar" : "Radar";
+    $("radar-btn").textContent = radarOn ? t("hideRadar") : t("radar");
     if (radarOn) {
       const c = course();
       showRadar($("radar-wrap"), c.lat, c.lon);
@@ -497,11 +499,11 @@ function placeWhere(h) {
 async function searchPlaces(everywhere) {
   const q = $("add-search").value.trim();
   if (!q) return;
-  $("add-results").textContent = "Searching…";
+  $("add-results").textContent = t("searching");
   const params = new URLSearchParams({
     name: q,
     count: "10",
-    language: "de",
+    language: lang,
     format: "json",
   });
   if (!everywhere) params.set("country", "AT");
@@ -510,11 +512,11 @@ async function searchPlaces(everywhere) {
   ).then((r) => r.json());
   const hits = data.results || [];
   if (!hits.length && !everywhere) {
-    $("add-results").textContent = "Nothing in Austria. Trying all countries…";
+    $("add-results").textContent = t("nothingAt");
     return searchPlaces(true);
   }
   if (!hits.length) {
-    $("add-results").textContent = "No matches.";
+    $("add-results").textContent = t("noMatches");
     return;
   }
   $("add-results").innerHTML = hits
@@ -572,5 +574,6 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
 
+applyStaticI18n();
 refresh(false);
 render();
