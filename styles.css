@@ -245,6 +245,8 @@ h1, h2 { margin: 0; font-weight: 700; }
   border-bottom: 1px solid var(--line);
   background: none;
 }
+.search-hit.picked { background: var(--green-soft); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 8px; }
+#add-picked { font-weight: 650; color: var(--ink); }
 
 dialog {
   width: min(100% - 24px, 520px);
