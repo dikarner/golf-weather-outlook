@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -18,12 +18,12 @@
         <span class="name" id="course-name">Atzenbrugg</span>
         <span class="club" id="course-club"></span>
       </button>
-      <button class="icon-btn" data-act="places" type="button" title="Places">Places</button>
-      <button class="icon-btn" data-act="refresh" type="button" title="Refresh">↻</button>
+      <button class="icon-btn" data-act="places" type="button" data-i18n-title="places" data-i18n="places">Orte</button>
+      <button class="icon-btn" data-act="refresh" type="button" data-i18n-title="refresh">↻</button>
     </header>
     <p class="meta" id="meta"></p>
     <section class="card" id="round-card">
-      <h2>Round</h2>
+      <h2 data-i18n="round">Runde</h2>
       <div id="round-body"></div>
     </section>
     <div class="toolbar">
@@ -36,69 +36,68 @@
     </div>
     <section class="outlook" id="outlook"></section>
     <footer>
-      Forecasts: DWD ICON-D2 / ICON-EU, CHMI ALADIN, ECMWF IFS via Open-Meteo (CC BY).
-      Radar: RainViewer. Personal use.
+      <span data-i18n="footer">Prognosen: DWD ICON-D2 / ICON-EU, CHMI ALADIN, ECMWF IFS über Open-Meteo (CC BY). Radar: RainViewer. Persönliche Nutzung.</span>
     </footer>
     <dialog id="switcher">
       <div class="sheet-head">
-        <h2>Course</h2>
-        <button class="btn ghost" data-act="close" type="button">Close</button>
+        <h2 data-i18n="course">Platz</h2>
+        <button class="btn ghost" data-act="close" type="button" data-i18n="close">Schließen</button>
       </div>
       <div id="switcher-list"></div>
     </dialog>
     <dialog id="places">
       <div class="sheet-head">
-        <h2>Places</h2>
-        <button class="btn ghost" data-act="close" type="button">Close</button>
+        <h2 data-i18n="places">Orte</h2>
+        <button class="btn ghost" data-act="close" type="button" data-i18n="close">Schließen</button>
       </div>
-      <p class="hint">Golf courses or villages. Open sets the current place (Atzenbrugg is the default on a fresh install).</p>
+      <p class="hint" data-i18n="placesHint">Golfplätze oder Orte. Öffnen setzt den aktuellen Ort (Atzenbrugg ist der Standard nach einer Neuinstallation).</p>
       <div id="places-list"></div>
-      <p><button class="btn primary" data-act="add-course" type="button">Add place</button></p>
+      <p><button class="btn primary" data-act="add-course" type="button" data-i18n="addPlace">Ort hinzufügen</button></p>
     </dialog>
     <dialog id="add-sheet">
       <div class="sheet-head">
-        <h2>Add place</h2>
-        <button class="btn ghost" data-act="close" type="button">Close</button>
+        <h2 data-i18n="addPlaceTitle">Ort hinzufügen</h2>
+        <button class="btn ghost" data-act="close" type="button" data-i18n="close">Schließen</button>
       </div>
-      <label class="field"><span>Name to show</span><input id="add-name" placeholder="e.g. Roggendorf" /></label>
-      <label class="field"><span>Search</span>
-        <input id="add-search" placeholder="village, town, or golf club" />
+      <label class="field"><span data-i18n="nameToShow">Anzeigename</span><input id="add-name" placeholder="z. B. Roggendorf" /></label>
+      <label class="field"><span data-i18n="search">Suche</span>
+        <input id="add-search" data-i18n-placeholder="searchPh" placeholder="Ort, Gemeinde oder Golfclub" />
       </label>
       <p>
-        <button class="btn" id="add-search-btn" type="button">Search Austria</button>
-        <button class="btn ghost" id="add-search-world" type="button">All countries</button>
+        <button class="btn" id="add-search-btn" type="button" data-i18n="searchAustria">In Österreich suchen</button>
+        <button class="btn ghost" id="add-search-world" type="button" data-i18n="searchWorld">Alle Länder</button>
       </p>
       <div id="add-results"></div>
       <p id="add-picked" class="hint" hidden></p>
       <input type="hidden" id="add-lat" />
       <input type="hidden" id="add-lon" />
       <input type="hidden" id="add-where" />
-      <p><button class="btn primary" id="add-save" type="button">Save</button></p>
+      <p><button class="btn primary" id="add-save" type="button" data-i18n="save">Speichern</button></p>
     </dialog>
     <dialog id="tee-editor">
       <div class="sheet-head">
-        <h2>Tee time</h2>
-        <button class="btn ghost" data-act="close" type="button">Close</button>
+        <h2 data-i18n="teeTime">Abschlagzeit</h2>
+        <button class="btn ghost" data-act="close" type="button" data-i18n="close">Schließen</button>
       </div>
-      <p class="hint">24-hour clock, to the minute. The round window is 5 hours from this start.</p>
-      <label class="field"><span>Date</span><input id="tee-date" type="date" /></label>
-      <label class="field"><span>Time</span><input id="tee-time" type="time" step="60" /></label>
+      <p class="hint" data-i18n="teeHint">24-Stunden-Uhr, auf die Minute. Das Rundenfenster sind 5 Stunden ab diesem Start.</p>
+      <label class="field"><span data-i18n="date">Datum</span><input id="tee-date" type="date" /></label>
+      <label class="field"><span data-i18n="time">Uhrzeit</span><input id="tee-time" type="time" step="60" /></label>
       <p>
-        <button class="btn primary" data-act="save-tee" type="button">Save</button>
-        <button class="btn" data-act="clear-tee" type="button">Clear</button>
+        <button class="btn primary" data-act="save-tee" type="button" data-i18n="save">Speichern</button>
+        <button class="btn" data-act="clear-tee" type="button" data-i18n="clear">Löschen</button>
       </p>
     </dialog>
     <dialog id="day-sheet">
       <div class="sheet-head">
-        <h2 id="day-sheet-title">Day</h2>
-        <button class="btn ghost" data-act="close-day" type="button">Close</button>
+        <h2 id="day-sheet-title" data-i18n="day">Tag</h2>
+        <button class="btn ghost" data-act="close-day" type="button" data-i18n="close">Schließen</button>
       </div>
       <div id="day-sheet-body"></div>
     </dialog>
     <dialog id="round-sheet">
       <div class="sheet-head">
-        <h2 id="round-sheet-title">Round</h2>
-        <button class="btn ghost" data-act="close-round" type="button">Close</button>
+        <h2 id="round-sheet-title" data-i18n="round">Runde</h2>
+        <button class="btn ghost" data-act="close-round" type="button" data-i18n="close">Schließen</button>
       </div>
       <div id="round-sheet-body"></div>
     </dialog>
