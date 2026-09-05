@@ -420,6 +420,9 @@ document.addEventListener("click", (e) => {
     $("add-results").innerHTML = "";
     $("add-lat").value = "";
     $("add-lon").value = "";
+    $("add-where").value = "";
+    $("add-picked").hidden = true;
+    $("add-picked").textContent = "";
     $("add-sheet").showModal();
   }
   if (act === "radar") {
@@ -471,41 +474,73 @@ $("places-list").addEventListener("click", (e) => {
   }
 });
 
-$("add-search-btn").addEventListener("click", searchPlaces);
+$("add-search-btn").addEventListener("click", () => searchPlaces(false));
+$("add-search-world").addEventListener("click", () => searchPlaces(true));
 $("add-search").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
-    searchPlaces();
+    searchPlaces(false);
   }
 });
 
-async function searchPlaces() {
+function placeWhere(h) {
+  const bits = [];
+  if (h.admin3 && h.admin3 !== h.name) bits.push(h.admin3);
+  let bezirk = h.admin2 || "";
+  bezirk = bezirk.replace(/^Politischer /, "").replace(/^Regierungsbezirk /, "");
+  if (bezirk && bezirk !== h.admin3 && bezirk !== h.admin1) bits.push(bezirk);
+  if (h.admin1) bits.push(h.admin1);
+  if (h.country) bits.push(h.country);
+  return bits.join(" · ");
+}
+
+async function searchPlaces(everywhere) {
   const q = $("add-search").value.trim();
   if (!q) return;
   $("add-results").textContent = "Searching…";
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=de&format=json`;
-  const data = await fetch(url).then((r) => r.json());
+  const params = new URLSearchParams({
+    name: q,
+    count: "10",
+    language: "de",
+    format: "json",
+  });
+  if (!everywhere) params.set("country", "AT");
+  const data = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?${params}`
+  ).then((r) => r.json());
   const hits = data.results || [];
+  if (!hits.length && !everywhere) {
+    $("add-results").textContent = "Nothing in Austria. Trying all countries…";
+    return searchPlaces(true);
+  }
   if (!hits.length) {
     $("add-results").textContent = "No matches.";
     return;
   }
   $("add-results").innerHTML = hits
-    .map(
-      (h) => `<button class="search-hit" data-lat="${h.latitude}" data-lon="${h.longitude}" data-name="${encodeURIComponent(h.name)}">
+    .map((h) => {
+      const where = placeWhere(h);
+      return `<button class="search-hit" type="button" data-lat="${h.latitude}" data-lon="${h.longitude}" data-name="${encodeURIComponent(h.name)}" data-where="${encodeURIComponent(where)}">
         <strong>${h.name}</strong><br>
-        <span class="hint">${[h.admin1, h.country].filter(Boolean).join(", ")} · ${h.latitude.toFixed(3)}, ${h.longitude.toFixed(3)}</span>
-      </button>`
-    )
+        <span class="hint">${where}</span>
+      </button>`;
+    })
     .join("");
 }
 
 $("add-results").addEventListener("click", (e) => {
   const hit = e.target.closest(".search-hit");
   if (!hit) return;
+  const name = decodeURIComponent(hit.dataset.name);
+  const where = decodeURIComponent(hit.dataset.where || "");
   $("add-lat").value = hit.dataset.lat;
   $("add-lon").value = hit.dataset.lon;
-  if (!$("add-name").value) $("add-name").value = decodeURIComponent(hit.dataset.name);
+  $("add-where").value = where;
+  if (!$("add-name").value) $("add-name").value = name;
+  $("add-picked").hidden = false;
+  $("add-picked").textContent = where ? `${name} — ${where}` : name;
+  $("add-results").querySelectorAll(".search-hit").forEach((b) => b.classList.remove("picked"));
+  hit.classList.add("picked");
 });
 
 $("add-save").addEventListener("click", () => {
@@ -514,7 +549,7 @@ $("add-save").addEventListener("click", () => {
   const lon = Number($("add-lon").value);
   if (!name || Number.isNaN(lat) || Number.isNaN(lon)) return;
   const id = `c_${Date.now()}`;
-  state.courses.push({ id, name, club: "", lat, lon });
+  state.courses.push({ id, name, club: $("add-where").value, lat, lon });
   persist();
   $("add-sheet").close();
   $("places").close();
