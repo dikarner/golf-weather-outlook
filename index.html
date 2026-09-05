@@ -51,23 +51,28 @@
         <h2>Places</h2>
         <button class="btn ghost" data-act="close" type="button">Close</button>
       </div>
-      <p class="hint">Add, remove, or reorder. Open sets the current course (Atzenbrugg is the default on a fresh install).</p>
+      <p class="hint">Golf courses or villages. Open sets the current place (Atzenbrugg is the default on a fresh install).</p>
       <div id="places-list"></div>
-      <p><button class="btn primary" data-act="add-course" type="button">Add course</button></p>
+      <p><button class="btn primary" data-act="add-course" type="button">Add place</button></p>
     </dialog>
     <dialog id="add-sheet">
       <div class="sheet-head">
-        <h2>Add course</h2>
+        <h2>Add place</h2>
         <button class="btn ghost" data-act="close" type="button">Close</button>
       </div>
-      <label class="field"><span>Name</span><input id="add-name" placeholder="e.g. Fontana" /></label>
-      <label class="field"><span>Search Austria</span>
-        <input id="add-search" placeholder="club or town" />
+      <label class="field"><span>Name to show</span><input id="add-name" placeholder="e.g. Roggendorf" /></label>
+      <label class="field"><span>Search</span>
+        <input id="add-search" placeholder="village, town, or golf club" />
       </label>
-      <p><button class="btn" id="add-search-btn" type="button">Search</button></p>
+      <p>
+        <button class="btn" id="add-search-btn" type="button">Search Austria</button>
+        <button class="btn ghost" id="add-search-world" type="button">All countries</button>
+      </p>
       <div id="add-results"></div>
-      <label class="field"><span>Latitude</span><input id="add-lat" inputmode="decimal" /></label>
-      <label class="field"><span>Longitude</span><input id="add-lon" inputmode="decimal" /></label>
+      <p id="add-picked" class="hint" hidden></p>
+      <input type="hidden" id="add-lat" />
+      <input type="hidden" id="add-lon" />
+      <input type="hidden" id="add-where" />
       <p><button class="btn primary" id="add-save" type="button">Save</button></p>
     </dialog>
     <dialog id="tee-editor">
