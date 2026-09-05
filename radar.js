@@ -22,6 +22,8 @@ function loadLeaflet() {
   return leafletReady;
 }
 
+const RADAR_MAX_ZOOM = 7;
+
 export async function showRadar(el, lat, lon) {
   stopRadar();
   el.hidden = false;
@@ -37,13 +39,15 @@ export async function showRadar(el, lat, lon) {
     map.remove();
     map = null;
   }
-  map = window.L.map(mapEl, { zoomControl: true, attributionControl: true }).setView(
-    [lat, lon],
-    8
-  );
+  map = window.L.map(mapEl, {
+    zoomControl: true,
+    attributionControl: true,
+    minZoom: 4,
+    maxZoom: RADAR_MAX_ZOOM,
+  }).setView([lat, lon], 7);
   window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap",
-    maxZoom: 16,
+    maxZoom: RADAR_MAX_ZOOM,
   }).addTo(map);
   window.L.circleMarker([lat, lon], {
     radius: 7,
@@ -52,6 +56,7 @@ export async function showRadar(el, lat, lon) {
     fillOpacity: 1,
     weight: 2,
   }).addTo(map);
+  requestAnimationFrame(() => map.invalidateSize());
 
   const meta = await fetch("https://api.rainviewer.com/public/weather-maps.json").then((r) =>
     r.json()
@@ -76,7 +81,12 @@ export async function showRadar(el, lat, lon) {
   function paintFrame() {
     const f = frames[frameIndex];
     if (overlay) map.removeLayer(overlay);
-    overlay = window.L.tileLayer(f.url, { opacity: 0.72, zIndex: 10 });
+    overlay = window.L.tileLayer(f.url, {
+      opacity: 0.72,
+      zIndex: 10,
+      maxZoom: RADAR_MAX_ZOOM,
+      maxNativeZoom: RADAR_MAX_ZOOM,
+    });
     overlay.addTo(map);
     const d = new Date(f.time * 1000);
     label.textContent = d.toLocaleTimeString("en-GB", {
