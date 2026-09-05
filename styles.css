@@ -175,7 +175,6 @@ h1, h2 { margin: 0; font-weight: 700; }
   border-top: 1px solid var(--line);
   font-variant-numeric: tabular-nums;
 }
-.hour-row:first-child { border-top: 0; }
 .hour-row .t { font-weight: 700; font-size: 18px; }
 .hour-row.sub {
   grid-template-columns: 3.4rem 1.5rem 3.2rem 1fr 5.6rem;
@@ -186,6 +185,21 @@ h1, h2 { margin: 0; font-weight: 700; }
   border-top: 0;
 }
 .hour-row.sub .t { font-weight: 500; font-size: 15px; }
+.hour-head {
+  border-top: 0;
+  padding-top: 0;
+  padding-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hour-scroll {
+  position: relative;
+  max-height: min(60dvh, 520px);
+  overflow: auto;
+}
 
 .toolbar {
   display: flex;
@@ -227,14 +241,20 @@ h1, h2 { margin: 0; font-weight: 700; }
 
 .list-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
 }
-.list-item .grow { flex: 1; min-width: 0; }
+.list-item .grow { flex: 1; min-width: 8rem; }
 .list-item .name { font-weight: 650; }
 .list-item .sub { font-size: 13px; color: var(--muted); }
+.list-item .row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .flag-line {
   display: flex;
   align-items: center;
