@@ -1,3 +1,5 @@
+import { t, locale, lang } from "./i18n.js";
+
 export const MODELS = [
   { id: "icon_d2", short: "D2", name: "ICON-D2" },
   { id: "icon_eu", short: "EU", name: "ICON-EU" },
@@ -206,7 +208,10 @@ export function daySkyKind(hours, sunrise, sunset) {
 
 export function compass(deg) {
   if (deg == null || Number.isNaN(deg)) return "";
-  const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const dirs =
+    lang === "de"
+      ? ["N", "NO", "O", "SO", "S", "SW", "W", "NW"]
+      : ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   return dirs[Math.round(deg / 45) % 8];
 }
 
@@ -222,7 +227,7 @@ export function fmtPrecip(n) {
 }
 
 export function rainStory(precip) {
-  if (precip == null || precip < 0.2) return "dry";
+  if (precip == null || precip < 0.2) return t("dry");
   if (precip < 1) return `${precip.toFixed(1)} mm`;
   return `${Math.round(precip)} mm`;
 }
@@ -281,11 +286,11 @@ export function todayInVienna() {
 export function formatDayHeading(dateStr) {
   const today = todayInVienna();
   const tomorrow = shiftDate(today, 1);
-  if (dateStr === today) return "Today";
-  if (dateStr === tomorrow) return "Tomorrow";
+  if (dateStr === today) return t("today");
+  if (dateStr === tomorrow) return t("tomorrow");
   const [y, m, d] = dateStr.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d, 12));
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale, {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -333,9 +338,9 @@ export function minutelyForHour(data, isoHour, modelId = "icon_d2") {
 export function runAgeLabel(fetchedAt) {
   if (!fetchedAt) return "";
   const min = Math.max(0, Math.round((Date.now() - fetchedAt) / 60000));
-  if (min < 1) return "just now";
-  if (min === 1) return "1 min ago";
-  if (min < 60) return `${min} min ago`;
+  if (min < 1) return t("justNow");
+  if (min === 1) return t("minAgo1");
+  if (min < 60) return t("minAgo", { n: min });
   const h = Math.round(min / 60);
-  return h === 1 ? "1 h ago" : `${h} h ago`;
+  return h === 1 ? t("hAgo1") : t("hAgo", { n: h });
 }
