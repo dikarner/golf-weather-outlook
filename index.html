@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#f4f0e4" />
+    <title>Golf outlook</title>
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <button class="course-btn" data-act="switch" type="button">
+        <span class="name" id="course-name">Atzenbrugg</span>
+        <span class="club" id="course-club"></span>
+      </button>
+      <button class="icon-btn" data-act="places" type="button" title="Places">Places</button>
+      <button class="icon-btn" data-act="refresh" type="button" title="Refresh">↻</button>
+    </header>
+    <p class="meta" id="meta"></p>
+    <section class="card" id="round-card">
+      <h2>Round</h2>
+      <div id="round-body"></div>
+    </section>
+    <div class="toolbar">
+      <button class="btn" id="models-toggle" data-act="models" type="button">+ All models</button>
+      <button class="btn" id="radar-btn" data-act="radar" type="button">Radar</button>
+    </div>
+    <div id="radar-wrap" hidden>
+      <div id="radar-map"></div>
+      <p id="radar-label"></p>
+    </div>
+    <section class="outlook" id="outlook"></section>
+    <footer>
+      Forecasts: DWD ICON-D2 / ICON-EU, CHMI ALADIN, ECMWF IFS via Open-Meteo (CC BY).
+      Radar: RainViewer. Personal use.
+    </footer>
+    <dialog id="switcher">
+      <div class="sheet-head">
+        <h2>Course</h2>
+        <button class="btn ghost" data-act="close" type="button">Close</button>
+      </div>
+      <div id="switcher-list"></div>
+    </dialog>
+    <dialog id="places">
+      <div class="sheet-head">
+        <h2>Places</h2>
+        <button class="btn ghost" data-act="close" type="button">Close</button>
+      </div>
+      <p class="hint">Add, remove, or reorder. Open sets the current course (Atzenbrugg is the default on a fresh install).</p>
+      <div id="places-list"></div>
+      <p><button class="btn primary" data-act="add-course" type="button">Add course</button></p>
+    </dialog>
+    <dialog id="add-sheet">
+      <div class="sheet-head">
+        <h2>Add course</h2>
+        <button class="btn ghost" data-act="close" type="button">Close</button>
+      </div>
+      <label class="field"><span>Name</span><input id="add-name" placeholder="e.g. Fontana" /></label>
+      <label class="field"><span>Search Austria</span>
+        <input id="add-search" placeholder="club or town" />
+      </label>
+      <p><button class="btn" id="add-search-btn" type="button">Search</button></p>
+      <div id="add-results"></div>
+      <label class="field"><span>Latitude</span><input id="add-lat" inputmode="decimal" /></label>
+      <label class="field"><span>Longitude</span><input id="add-lon" inputmode="decimal" /></label>
+      <p><button class="btn primary" id="add-save" type="button">Save</button></p>
+    </dialog>
+    <dialog id="tee-editor">
+      <div class="sheet-head">
+        <h2>Tee time</h2>
+        <button class="btn ghost" data-act="close" type="button">Close</button>
+      </div>
+      <p class="hint">24-hour clock, to the minute. The round window is 5 hours from this start.</p>
+      <label class="field"><span>Date</span><input id="tee-date" type="date" /></label>
+      <label class="field"><span>Time</span><input id="tee-time" type="time" step="60" /></label>
+      <p>
+        <button class="btn primary" data-act="save-tee" type="button">Save</button>
+        <button class="btn" data-act="clear-tee" type="button">Clear</button>
+      </p>
+    </dialog>
+    <dialog id="day-sheet">
+      <div class="sheet-head">
+        <h2 id="day-sheet-title">Day</h2>
+        <button class="btn ghost" data-act="close-day" type="button">Close</button>
+      </div>
+      <div id="day-sheet-body"></div>
+    </dialog>
+    <dialog id="round-sheet">
+      <div class="sheet-head">
+        <h2 id="round-sheet-title">Round</h2>
+        <button class="btn ghost" data-act="close-round" type="button">Close</button>
+      </div>
+      <div id="round-sheet-body"></div>
+    </dialog>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
