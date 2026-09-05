@@ -1,11 +1,11 @@
 import {
   MODELS,
+  MIX_ID,
   ROUND_HOURS,
   fetchForecast,
-  preferredModelOnDay,
-  readDayPreferred,
+  readDayMix,
   readHour,
-  readHourPreferred,
+  readHourMix,
   hoursOfDay,
   outlookDates,
   isStorm,
@@ -24,6 +24,7 @@ import {
   minutelyForHour,
   runAgeLabel,
   modelById,
+  modelWeight,
 } from "./weather.js";
 import {
   loadState,
@@ -57,13 +58,14 @@ function modelsOpen() {
 
 function badge(modelId) {
   if (!modelId || modelId === "icon_d2") return "";
+  if (modelId === MIX_ID) return `<span class="badge mix">${t("mix")}</span>`;
   const m = modelById(modelId);
   const cls = modelId === "ecmwf_ifs025" ? "ifs" : "eu";
   return `<span class="badge ${cls}">${m?.short || modelId}</span>`;
 }
 
 function sunTimes(dateStr) {
-  const d = forecast ? readDayPreferred(forecast, dateStr) : null;
+  const d = forecast ? readDayMix(forecast, dateStr) : null;
   return { sunrise: d?.sunrise, sunset: d?.sunset };
 }
 
@@ -88,9 +90,11 @@ function render() {
   const c = course();
   $("course-name").textContent = c.name;
   $("course-club").textContent = c.club || "";
+  $("round-card").hidden = !c.golf;
   const age = forecast ? runAgeLabel(forecast.fetchedAt) : "";
-  const src = forecast ? preferredModelOnDay(forecast, todayInVienna()) : null;
-  const srcShort = src ? modelById(src)?.short : "—";
+  const mix = forecast ? readDayMix(forecast, todayInVienna()) : null;
+  const srcShort =
+    mix?.model === MIX_ID ? t("mix") : modelById(mix?.model)?.short || "—";
   let meta = status === "loading" ? t("loading") : `${srcShort} · ${age}`;
   if (status === "cached") meta += ` · ${t("cached")}`;
   if (status === "error")
@@ -117,7 +121,7 @@ function renderRound() {
   }
   const win = roundSlots(tee.date, tee.time);
   const rows = forecast
-    ? win.slots.map((iso) => readHourPreferred(forecast, iso)).filter(Boolean)
+    ? win.slots.map((iso) => readHourMix(forecast, iso)).filter(Boolean)
     : [];
   const sum = summarizeHours(rows);
   const day = formatDayHeading(tee.date);
@@ -130,9 +134,8 @@ function renderRound() {
     sky = skyIcon(kind, 26);
     sub = `${rainStory(sum.rain)} · ${fmt1(sum.teeTemp)}° ${t("atTee")} · ${windLine(sum.wind, sum.gust)}`;
     if (sum.storm) sub += ` · <span class="storm">${t("storm")}</span>`;
-    if (sum.models.some((m) => m !== "icon_d2")) {
-      sub += badge(sum.models[0]);
-    }
+    if (sum.models.length > 1) sub += badge(MIX_ID);
+    else if (sum.models[0] && sum.models[0] !== "icon_d2") sub += badge(sum.models[0]);
   }
   box.innerHTML = `
     <p class="round-summary">${sky}${summary}</p>
@@ -154,10 +157,10 @@ function renderOutlook() {
   const extra = dates.length > shown.length;
   const daysHtml = shown
     .map((d) => {
-      const row = readDayPreferred(forecast, d);
+      const row = readDayMix(forecast, d);
       if (!row) return "";
       const hours = hoursOfDay(forecast, d)
-        .map((iso) => readHourPreferred(forecast, iso))
+        .map((iso) => readHourMix(forecast, iso))
         .filter(Boolean);
       const storm = isStorm(row.code) || hours.some((h) => isStorm(h.code));
       const story = [rainStory(row.precip), windLine(row.wind, row.gust)]
@@ -191,20 +194,18 @@ function shiftPlus(dateStr, days) {
 }
 
 function hourBlock(iso, expand) {
-  const pref = readHourPreferred(forecast, iso);
-  if (!pref) return "";
-  const main = hourLine(pref, false);
+  const mix = readHourMix(forecast, iso);
+  if (!mix) return "";
+  const main = hourLine(mix, false, expand);
   if (!expand) return main;
-  const subs = MODELS.filter((m) => m.id !== pref.model)
-    .map((m) => {
-      const row = readHour(forecast, iso, m.id);
-      return row ? hourLine(row, true) : "";
-    })
-    .join("");
+  const subs = MODELS.map((m) => {
+    const row = readHour(forecast, iso, m.id);
+    return row ? hourLine(row, true, false) : "";
+  }).join("");
   return main + subs;
 }
 
-function hourLine(row, sub) {
+function hourLine(row, sub, labelMix) {
   const rain = row.precip != null && row.precip >= 0.05 ? fmtPrecipLocal(row.precip) : t("dry");
   const storm = isStorm(row.code) ? ` <span class="storm">${t("storm")}</span>` : "";
   if (sub) {
@@ -216,10 +217,11 @@ function hourLine(row, sub) {
       <span>${windLine(row.wind, row.gust, row.dir)}</span>
     </div>`;
   }
+  const mixMark = labelMix ? badge(row.model === MIX_ID ? MIX_ID : row.model) : "";
   return `<div class="hour-row">
     <span>${formatClock(row.time)}</span>
     ${skyIcon(hourSky(row), 18)}
-    <span class="t">${fmt1(row.temp)}°</span>
+    <span class="t">${fmt1(row.temp)}°${mixMark}</span>
     <span>${rain}${storm}</span>
     <span>${windLine(row.wind, row.gust, row.dir)}</span>
   </div>`;
@@ -247,7 +249,7 @@ function renderDaySheet() {
     if (dlg.open) dlg.close();
     return;
   }
-  const row = readDayPreferred(forecast, openDay);
+  const row = readDayMix(forecast, openDay);
   const hours = hoursOfDay(forecast, openDay);
   const expand = modelsOpen();
   const htmlHours = hours.map((iso) => hourBlock(iso, expand)).join("");
@@ -332,6 +334,10 @@ function renderPlaces() {
         <div class="grow">
           <div class="name">${c.name}</div>
           <div class="sub">${c.club || ""}${def}</div>
+          <label class="flag-line">
+            <input type="checkbox" data-act="golf" ${c.golf ? "checked" : ""} />
+            ${t("golfPlace")}
+          </label>
         </div>
         <button class="btn" data-act="up" data-i="${i}" ${i === 0 ? "disabled" : ""}>↑</button>
         <button class="btn" data-act="down" data-i="${i}" ${i === state.courses.length - 1 ? "disabled" : ""}>↓</button>
@@ -340,6 +346,38 @@ function renderPlaces() {
       </div>`;
     })
     .join("");
+}
+
+function renderModelsInfo() {
+  const horizons = [0, 1, 2, 3, 4, 5, 6];
+  const head = horizons
+    .map((d) => `<th>${d === 0 ? t("today") : d === 1 ? t("tomorrow") : d >= 6 ? "+6…" : `+${d}`}</th>`)
+    .join("");
+  const rows = MODELS.map((m) => {
+    const cells = horizons
+      .map((d) => {
+        const w = modelWeight(m.id, d);
+        return `<td>${w || "–"}</td>`;
+      })
+      .join("");
+    return `<tr><th>${m.short}</th>${cells}</tr>`;
+  }).join("");
+  const about = MODELS.map(
+    (m) => `<h3>${m.name} <span class="badge ${m.id === "ecmwf_ifs025" ? "ifs" : m.short === "D2" ? "" : "eu"}">${m.short}</span></h3>
+      <p class="hint">${t(`modelAbout_${m.short}`)}</p>`
+  ).join("");
+  $("models-info-body").innerHTML = `
+    <p>${t("modelsInfoLead")}</p>
+    ${about}
+    <h3>${t("modelsInfoWeights")}</h3>
+    <div class="table-wrap">
+      <table class="weight-table">
+        <thead><tr><th></th>${head}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <p class="hint">${t("modelsInfoCodes")}</p>
+  `;
 }
 
 function renderSwitcher() {
@@ -379,6 +417,10 @@ document.addEventListener("click", (e) => {
     state.expanded[state.activeId] = !modelsOpen();
     persist();
     render();
+  }
+  if (act === "models-info") {
+    renderModelsInfo();
+    $("models-info").showModal();
   }
   if (act === "edit-tee") {
     const tee = state.tees[state.activeId] || {};
@@ -426,6 +468,7 @@ document.addEventListener("click", (e) => {
     $("add-where").value = "";
     $("add-picked").hidden = true;
     $("add-picked").textContent = "";
+    $("add-golf").checked = false;
     $("add-sheet").showModal();
   }
   if (act === "radar") {
@@ -445,6 +488,17 @@ $("switcher-list").addEventListener("click", (e) => {
   if (!id) return;
   $("switcher").close();
   selectCourse(id);
+});
+
+$("places-list").addEventListener("change", (e) => {
+  const box = e.target.closest("input[data-act='golf']");
+  if (!box) return;
+  const row = box.closest(".list-item");
+  const c = state.courses.find((x) => x.id === row?.dataset.id);
+  if (!c) return;
+  c.golf = box.checked;
+  persist();
+  render();
 });
 
 $("places-list").addEventListener("click", (e) => {
@@ -552,7 +606,14 @@ $("add-save").addEventListener("click", () => {
   const lon = Number($("add-lon").value);
   if (!name || Number.isNaN(lat) || Number.isNaN(lon)) return;
   const id = `c_${Date.now()}`;
-  state.courses.push({ id, name, club: $("add-where").value, lat, lon });
+  state.courses.push({
+    id,
+    name,
+    club: $("add-where").value,
+    lat,
+    lon,
+    golf: $("add-golf").checked,
+  });
   persist();
   $("add-sheet").close();
   $("places").close();
