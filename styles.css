@@ -163,6 +163,7 @@ h1, h2 { margin: 0; font-weight: 700; }
 }
 .badge.eu { background: #e7eef8; color: var(--rain); }
 .badge.ifs { background: #eeeae0; color: var(--muted); }
+.badge.mix { background: #efe6d0; color: #5a4a20; }
 .storm { color: var(--storm); font-weight: 700; }
 
 .hour-row {
@@ -191,6 +192,18 @@ h1, h2 { margin: 0; font-weight: 700; }
   justify-content: space-between;
   align-items: center;
   margin: 8px 0;
+  gap: 8px;
+}
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.info-btn {
+  min-width: var(--tap);
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, "Times New Roman", serif;
 }
 
 .spark {
@@ -222,6 +235,36 @@ h1, h2 { margin: 0; font-weight: 700; }
 .list-item .grow { flex: 1; min-width: 0; }
 .list-item .name { font-weight: 650; }
 .list-item .sub { font-size: 13px; color: var(--muted); }
+.flag-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.flag-line input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--green);
+}
+.model-info h3 {
+  font-size: 16px;
+  margin: 14px 0 4px;
+}
+.table-wrap { overflow-x: auto; margin: 8px 0 12px; }
+.weight-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.weight-table th, .weight-table td {
+  text-align: center;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.weight-table th:first-child, .weight-table td:first-child { text-align: left; }
 
 .field {
   display: block;
