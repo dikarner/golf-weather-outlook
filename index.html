@@ -22,22 +22,30 @@
       <button class="icon-btn" data-act="refresh" type="button" data-i18n-title="refresh">↻</button>
     </header>
     <p class="meta" id="meta"></p>
+
     <section class="card" id="round-card">
-      <h2 data-i18n="round">Runde</h2>
+      <h2 data-i18n="roundTitle">Runde – Wetterprognose</h2>
       <div id="round-body"></div>
     </section>
+
     <div class="toolbar">
-      <button class="btn" id="models-toggle" data-act="models" type="button">+ All models</button>
+      <div class="toolbar-left">
+        <button class="btn" id="models-toggle" data-act="models" type="button">+ Alle Modelle</button>
+        <button class="icon-btn info-btn" data-act="models-info" type="button" data-i18n-title="modelsInfoTitle">i</button>
+      </div>
       <button class="btn" id="radar-btn" data-act="radar" type="button">Radar</button>
     </div>
     <div id="radar-wrap" hidden>
       <div id="radar-map"></div>
       <p id="radar-label"></p>
     </div>
+
     <section class="outlook" id="outlook"></section>
+
     <footer>
       <span data-i18n="footer">Prognosen: DWD ICON-D2 / ICON-EU, CHMI ALADIN, ECMWF IFS über Open-Meteo (CC BY). Radar: RainViewer. Persönliche Nutzung.</span>
     </footer>
+
     <dialog id="switcher">
       <div class="sheet-head">
         <h2 data-i18n="course">Platz</h2>
@@ -45,6 +53,7 @@
       </div>
       <div id="switcher-list"></div>
     </dialog>
+
     <dialog id="places">
       <div class="sheet-head">
         <h2 data-i18n="places">Orte</h2>
@@ -54,6 +63,7 @@
       <div id="places-list"></div>
       <p><button class="btn primary" data-act="add-course" type="button" data-i18n="addPlace">Ort hinzufügen</button></p>
     </dialog>
+
     <dialog id="add-sheet">
       <div class="sheet-head">
         <h2 data-i18n="addPlaceTitle">Ort hinzufügen</h2>
@@ -72,8 +82,13 @@
       <input type="hidden" id="add-lat" />
       <input type="hidden" id="add-lon" />
       <input type="hidden" id="add-where" />
+      <label class="flag-line">
+        <input type="checkbox" id="add-golf" />
+        <span data-i18n="golfPlaceHint">Golfplatz — Abschlagzeit und Rundenfenster anzeigen</span>
+      </label>
       <p><button class="btn primary" id="add-save" type="button" data-i18n="save">Speichern</button></p>
     </dialog>
+
     <dialog id="tee-editor">
       <div class="sheet-head">
         <h2 data-i18n="teeTime">Abschlagzeit</h2>
@@ -87,6 +102,7 @@
         <button class="btn" data-act="clear-tee" type="button" data-i18n="clear">Löschen</button>
       </p>
     </dialog>
+
     <dialog id="day-sheet">
       <div class="sheet-head">
         <h2 id="day-sheet-title" data-i18n="day">Tag</h2>
@@ -94,6 +110,15 @@
       </div>
       <div id="day-sheet-body"></div>
     </dialog>
+
+    <dialog id="models-info">
+      <div class="sheet-head">
+        <h2 data-i18n="modelsInfoTitle">Welche Modelle?</h2>
+        <button class="btn ghost" data-act="close" type="button" data-i18n="close">Schließen</button>
+      </div>
+      <div id="models-info-body" class="model-info"></div>
+    </dialog>
+
     <dialog id="round-sheet">
       <div class="sheet-head">
         <h2 id="round-sheet-title" data-i18n="round">Runde</h2>
@@ -101,6 +126,7 @@
       </div>
       <div id="round-sheet-body"></div>
     </dialog>
+
     <script type="module" src="./app.js"></script>
   </body>
 </html>
