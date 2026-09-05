@@ -173,6 +173,37 @@ export function isStorm(code) {
   return code === 95 || code === 96 || code === 97 || code === 99;
 }
 
+export function isFog(code) {
+  return code === 45 || code === 48;
+}
+
+export function isNightHour(isoHour, sunrise, sunset) {
+  if (!isoHour) return false;
+  const mid = `${isoHour.slice(0, 13)}:30`;
+  if (sunrise && sunset) return mid < sunrise || mid >= sunset;
+  const h = Number(isoHour.slice(11, 13));
+  return h < 6 || h >= 19;
+}
+
+export function skyKind(code, night) {
+  if (isFog(code)) return "fog";
+  if (code == null || code <= 1) return night ? "moon" : "sun";
+  if (code === 2) return night ? "mooncloud" : "suncloud";
+  return "cloud";
+}
+
+export function daySkyKind(hours, sunrise, sunset) {
+  if (!hours?.length) return "sun";
+  const morning = hours.filter((h) => {
+    const hr = Number(h.time.slice(11, 13));
+    return hr >= 5 && hr <= 11 && isFog(h.code);
+  });
+  if (morning.length) return "fog";
+  const daytime = hours.filter((h) => !isNightHour(h.time, sunrise, sunset));
+  const pick = daytime.find((h) => h.time.includes("T12:")) || daytime[Math.floor(daytime.length / 2)] || hours[0];
+  return skyKind(pick.code, false);
+}
+
 export function compass(deg) {
   if (deg == null || Number.isNaN(deg)) return "";
   const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
