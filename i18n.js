@@ -10,6 +10,8 @@ const de = {
     "Die kompakte Ansicht ist ein gewichteter Mix. Feinere Gitter zählen mehr, und die Gewichte wechseln mit dem Tag. „+ Alle Modelle“ zeigt den Mix und jedes Einzelmodell.",
   modelsInfoCodes:
     "Sonne, Nebel und Gewitter werden nicht gemittelt. Gewitter oder Nebel gelten, sobald ein Modell im Mix sie zeigt.",
+  modelsInfoPop:
+    "Regenwahrscheinlichkeit (%) kommt aus den Ensemble-Läufen von ICON-D2, ICON-EU und IFS. ALADIN liefert keine %.",
   modelsInfoWeights: "Gewichte nach Tagen (nur Modelle mit Daten)",
   modelAbout_D2: "DWD, ~2 km, ~2 Tage. Heute und morgen der Hauptbeitrag. Gut für lokale Schauer in Österreich.",
   modelAbout_EU: "DWD, ~7 km, ~5 Tage. Die Brücke für die Tage 2–5.",
@@ -98,6 +100,8 @@ const en = {
     "The compact view is a weighted mix. Finer grids count more, and the weights change with the day. “+ All models” shows the mix and each individual model.",
   modelsInfoCodes:
     "Sun, fog and storm are not averaged. Storm or fog counts as soon as any model in the mix shows it.",
+  modelsInfoPop:
+    "Rain probability (%) comes from the ICON-D2, ICON-EU and IFS ensembles. ALADIN has no %.",
   modelsInfoWeights: "Weights by day (only models that have data)",
   modelAbout_D2: "DWD, ~2 km, ~2 days. Main contribution today and tomorrow. Good for local showers in Austria.",
   modelAbout_EU: "DWD, ~7 km, ~5 days. The bridge for days 2–5.",
