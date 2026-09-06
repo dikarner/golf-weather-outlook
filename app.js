@@ -356,14 +356,19 @@ function renderPlaces() {
         <div class="grow">
           <div class="name">${c.name}</div>
           <div class="sub">${c.club || ""}${def}</div>
-          <label class="flag-line">
-            <input type="checkbox" data-act="golf" ${c.golf ? "checked" : ""} />
-            ${t("golfPlace")}
-          </label>
+          <div class="flag-line">
+            <label class="flag-check">
+              <input type="checkbox" data-act="golf" ${c.golf ? "checked" : ""} />
+              ${t("golfPlace")}
+            </label>
+            <button class="icon-btn info-btn" type="button" data-act="golf-info" title="${t("golfInfoTitle")}">i</button>
+          </div>
         </div>
         <div class="row-actions">
-          <button class="btn" data-act="up" data-i="${i}" ${i === 0 ? "disabled" : ""}>↑</button>
-          <button class="btn" data-act="down" data-i="${i}" ${i === state.courses.length - 1 ? "disabled" : ""}>↓</button>
+          <button class="btn" data-act="top" title="${t("moveTop")}" ${i === 0 ? "disabled" : ""}>⤒</button>
+          <button class="btn" data-act="up" title="${t("moveUp")}" ${i === 0 ? "disabled" : ""}>↑</button>
+          <button class="btn" data-act="down" title="${t("moveDown")}" ${i === state.courses.length - 1 ? "disabled" : ""}>↓</button>
+          <button class="btn" data-act="bottom" title="${t("moveBottom")}" ${i === state.courses.length - 1 ? "disabled" : ""}>⤓</button>
           <button class="btn" data-act="edit-place">${t("edit")}</button>
           <button class="btn" data-act="use">${t("open")}</button>
           <button class="btn danger" data-act="del">✕</button>
@@ -447,6 +452,9 @@ document.addEventListener("click", (e) => {
   if (act === "models-info") {
     renderModelsInfo();
     $("models-info").showModal();
+  }
+  if (act === "golf-info") {
+    $("golf-info").showModal();
   }
   if (act === "edit-tee") {
     const tee = state.tees[state.activeId] || {};
@@ -554,6 +562,12 @@ $("places-list").addEventListener("click", (e) => {
     renderPlaces();
     render();
   }
+  if (act === "top" && i > 0) {
+    const [item] = state.courses.splice(i, 1);
+    state.courses.unshift(item);
+    persist();
+    renderPlaces();
+  }
   if (act === "up" && i > 0) {
     [state.courses[i - 1], state.courses[i]] = [state.courses[i], state.courses[i - 1]];
     persist();
@@ -561,6 +575,12 @@ $("places-list").addEventListener("click", (e) => {
   }
   if (act === "down" && i < state.courses.length - 1) {
     [state.courses[i + 1], state.courses[i]] = [state.courses[i], state.courses[i + 1]];
+    persist();
+    renderPlaces();
+  }
+  if (act === "bottom" && i < state.courses.length - 1) {
+    const [item] = state.courses.splice(i, 1);
+    state.courses.push(item);
     persist();
     renderPlaces();
   }
