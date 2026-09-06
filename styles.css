@@ -193,6 +193,7 @@ h1, h2 { margin: 0; font-weight: 700; }
 .badge.ifs { background: var(--badge-ifs-bg); color: var(--muted); }
 .badge.mix { background: var(--badge-mix-bg); color: var(--badge-mix); }
 .storm { color: var(--storm); font-weight: 700; }
+.pop { color: var(--rain); font-variant-numeric: tabular-nums; }
 
 .hour-row {
   display: grid;
