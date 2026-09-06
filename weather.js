@@ -42,6 +42,7 @@ const HOURLY_VARS = [
   "temperature_2m",
   "apparent_temperature",
   "precipitation",
+  "precipitation_probability",
   "weather_code",
   "wind_speed_10m",
   "wind_gusts_10m",
@@ -52,6 +53,7 @@ const DAILY_VARS = [
   "temperature_2m_max",
   "temperature_2m_min",
   "precipitation_sum",
+  "precipitation_probability_max",
   "weather_code",
   "wind_speed_10m_max",
   "wind_gusts_10m_max",
@@ -138,6 +140,7 @@ export function readHour(data, isoHour, modelId) {
     temp,
     feels: pick("apparent_temperature"),
     precip: pick("precipitation"),
+    precipProb: pick("precipitation_probability"),
     code: pick("weather_code"),
     wind: pick("wind_speed_10m"),
     gust: pick("wind_gusts_10m"),
@@ -179,6 +182,7 @@ export function readDay(data, dateStr, modelId) {
     tmax,
     tmin,
     precip: pick("precipitation_sum"),
+    precipProb: pick("precipitation_probability_max"),
     code: pick("weather_code"),
     wind: pick("wind_speed_10m_max"),
     gust: pick("wind_gusts_10m_max"),
@@ -266,6 +270,7 @@ function blendHour(parts, isoHour) {
     temp: weightedMean(parts, (r) => r.temp),
     feels: weightedMean(parts, (r) => r.feels),
     precip: weightedMean(parts, (r) => r.precip),
+    precipProb: weightedMean(parts, (r) => r.precipProb),
     code: pickCode(parts),
     wind: weightedMean(parts, (r) => r.wind),
     gust: weightedMean(parts, (r) => r.gust),
@@ -284,6 +289,7 @@ function blendDay(parts, dateStr) {
     tmax: weightedMean(parts, (r) => r.tmax),
     tmin: weightedMean(parts, (r) => r.tmin),
     precip: weightedMean(parts, (r) => r.precip),
+    precipProb: weightedMean(parts, (r) => r.precipProb),
     code: pickCode(parts),
     wind: weightedMean(parts, (r) => r.wind),
     gust: weightedMean(parts, (r) => r.gust),
@@ -366,6 +372,11 @@ export function rainStory(precip) {
   if (precip == null || precip < 0.2) return t("dry");
   if (precip < 1) return `${precip.toFixed(1)} mm`;
   return `${Math.round(precip)} mm`;
+}
+
+export function fmtPop(n) {
+  if (n == null || Number.isNaN(Number(n))) return "";
+  return `${Math.round(n)}%`;
 }
 
 export function windLine(speed, gust, dir) {
@@ -472,11 +483,13 @@ export function summarizeHours(rows) {
   const wind = Math.max(...live.map((r) => r.wind ?? 0));
   const gust = Math.max(...live.map((r) => r.gust ?? 0));
   const temps = live.map((r) => r.temp).filter((n) => n != null);
+  const pops = live.map((r) => r.precipProb).filter((n) => n != null);
   return {
     rain,
     storm,
     wind,
     gust,
+    precipProb: pops.length ? Math.max(...pops) : null,
     tmin: Math.min(...temps),
     tmax: Math.max(...temps),
     teeTemp: live[0].temp,
