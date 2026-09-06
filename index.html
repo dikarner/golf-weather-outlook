@@ -84,10 +84,13 @@
       <input type="hidden" id="add-lat" />
       <input type="hidden" id="add-lon" />
       <input type="hidden" id="add-where" />
-      <label class="flag-line">
-        <input type="checkbox" id="add-golf" />
-        <span data-i18n="golfPlaceHint">Golfplatz — Abschlagzeit und Rundenfenster anzeigen</span>
-      </label>
+      <div class="flag-line">
+        <label class="flag-check">
+          <input type="checkbox" id="add-golf" />
+          <span data-i18n="golfPlace">Golfplatz</span>
+        </label>
+        <button class="icon-btn info-btn" type="button" data-act="golf-info" data-i18n-title="golfInfoTitle">i</button>
+      </div>
       <p><button class="btn primary" id="add-save" type="button" data-i18n="save">Speichern</button></p>
     </dialog>
 
@@ -103,6 +106,14 @@
         <button class="btn primary" data-act="save-tee" type="button" data-i18n="save">Speichern</button>
         <button class="btn" data-act="clear-tee" type="button" data-i18n="clear">Löschen</button>
       </p>
+    </dialog>
+
+    <dialog id="golf-info">
+      <div class="sheet-head">
+        <h2 data-i18n="golfInfoTitle">Golfplatz-Häkchen</h2>
+        <button class="btn ghost" data-act="close" type="button" data-i18n="close">Schließen</button>
+      </div>
+      <p class="hint" data-i18n="golfInfoBody">Wenn Golfplatz an ist, zeigt dieser Ort die Karte „Runde – Wetterprognose“: Abschlagzeit und ein 5-Stunden-Fenster. Für ein Dorf oder zuhause das Häkchen auslassen — dann fällt der Rundenblock weg und die Prognose hat mehr Platz.</p>
     </dialog>
 
     <dialog id="edit-place">
