@@ -15,6 +15,7 @@ import {
   daySkyKind,
   fmt1,
   rainStory,
+  fmtPop,
   windLine,
   roundSlots,
   todayInVienna,
@@ -133,7 +134,8 @@ function renderRound() {
   if (sum) {
     const kind = rows.some((r) => isFog(r.code)) ? "fog" : hourSky(rows[0]);
     sky = skyIcon(kind, 26);
-    sub = `${rainStory(sum.rain)} · ${fmt1(sum.teeTemp)}° ${t("atTee")} · ${windLine(sum.wind, sum.gust)}`;
+    const pop = fmtPop(sum.precipProb);
+    sub = `${rainStory(sum.rain)}${pop ? ` · ${pop}` : ""} · ${fmt1(sum.teeTemp)}° ${t("atTee")} · ${windLine(sum.wind, sum.gust)}`;
     if (sum.storm) sub += ` · <span class="storm">${t("storm")}</span>`;
     if (sum.models.length > 1) sub += badge(MIX_ID);
     else if (sum.models[0] && sum.models[0] !== "icon_d2") sub += badge(sum.models[0]);
@@ -164,7 +166,7 @@ function renderOutlook() {
         .map((iso) => readHourMix(forecast, iso))
         .filter(Boolean);
       const storm = isStorm(row.code) || hours.some((h) => isStorm(h.code));
-      const story = [rainStory(row.precip), windLine(row.wind, row.gust)]
+      const story = [rainStory(row.precip), fmtPop(row.precipProb), windLine(row.wind, row.gust)]
         .filter(Boolean)
         .join(" · ");
       const kind = daySkyKind(hours, row.sunrise, row.sunset);
@@ -208,13 +210,15 @@ function hourBlock(iso, expand) {
 
 function hourLine(row, sub, labelMix) {
   const rain = row.precip != null && row.precip >= 0.05 ? fmtPrecipLocal(row.precip) : t("dry");
+  const pop = fmtPop(row.precipProb);
+  const rainCell = pop ? `${rain} <span class="pop">${pop}</span>` : rain;
   const storm = isStorm(row.code) ? ` <span class="storm">${t("storm")}</span>` : "";
   if (sub) {
     return `<div class="hour-row sub">
       <span></span>
       <span></span>
       <span class="t">${modelById(row.model)?.short} ${fmt1(row.temp)}°</span>
-      <span>${rain}${storm}</span>
+      <span>${rainCell}${storm}</span>
       <span>${windLine(row.wind, row.gust, row.dir)}</span>
     </div>`;
   }
@@ -223,7 +227,7 @@ function hourLine(row, sub, labelMix) {
     <span>${formatClock(row.time)}</span>
     ${skyIcon(hourSky(row), 18)}
     <span class="t">${fmt1(row.temp)}°${mixMark}</span>
-    <span>${rain}${storm}</span>
+    <span>${rainCell}${storm}</span>
     <span>${windLine(row.wind, row.gust, row.dir)}</span>
   </div>`;
 }
@@ -268,7 +272,7 @@ function renderDaySheet() {
   const htmlHours = hours.map((iso) => hourBlock(iso, expand)).join("");
   $("day-sheet-title").textContent = formatDayHeading(openDay);
   $("day-sheet-summary").innerHTML = `
-    <p class="hint">${row ? `${fmt1(row.tmax)}° / ${fmt1(row.tmin)}° · ${rainStory(row.precip)}` : ""}${badge(row?.model)}</p>
+    <p class="hint">${row ? `${fmt1(row.tmax)}° / ${fmt1(row.tmin)}° · ${rainStory(row.precip)}${fmtPop(row.precipProb) ? ` · ${fmtPop(row.precipProb)}` : ""}` : ""}${badge(row?.model)}</p>
     ${openDay === todayInVienna() ? sparkline(hours.slice(0, 8)) : ""}
   `;
   $("day-hour-head").hidden = !htmlHours;
@@ -398,6 +402,7 @@ function renderModelsInfo() {
       </table>
     </div>
     <p class="hint">${t("modelsInfoCodes")}</p>
+    <p class="hint">${t("modelsInfoPop")}</p>
   `;
 }
 
