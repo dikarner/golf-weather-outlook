@@ -292,10 +292,19 @@ h1, h2 { margin: 0; font-weight: 700; }
   font-size: 14px;
   color: var(--muted);
 }
+.flag-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+}
 .flag-line input {
   width: 18px;
   height: 18px;
   accent-color: var(--green);
+}
+.flag-line .info-btn {
+  padding: 0 10px;
 }
 .model-info h3 {
   font-size: 16px;
