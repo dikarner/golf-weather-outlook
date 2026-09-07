@@ -114,6 +114,10 @@ h1, h2 { margin: 0; font-weight: 700; }
   font-size: 13px;
   margin: 0 0 14px;
 }
+.geo-help {
+  color: var(--warn);
+  margin: -8px 0 14px;
+}
 
 .card {
   background: var(--card);
