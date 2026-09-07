@@ -123,3 +123,43 @@ function render() {
   renderDaySheet();
   renderRoundSheet();
 }
+
+function renderRound() {
+  const tee = state.tees[state.activeId];
+  const box = $("round-body");
+  if (!tee?.date || !tee?.time) {
+    box.innerHTML = `
+      <p class="round-summary">${t("noTee")}</p>
+      <p class="round-sub">${t("noTeeHint")}</p>
+      <div class="round-actions">
+        <button class="btn primary" data-act="edit-tee">${t("setTee")}</button>
+      </div>`;
+    return;
+  }
+  const win = roundSlots(tee.date, tee.time);
+  const rows = forecast
+    ? win.slots.map((iso) => readHourMix(forecast, iso)).filter(Boolean)
+    : [];
+  const sum = summarizeHours(rows);
+  const day = formatDayHeading(tee.date);
+  const endClock = win.endLabel.slice(-5);
+  let summary = `${day} ${tee.time}–${endClock}`;
+  let sub = `${ROUND_HOURS} ${t("hRound")} · ${t("hours")} ${formatClock(win.slots[0])}–${formatClock(win.slots.at(-1))}`;
+  let sky = "";
+  if (sum) {
+    const kind = rows.some((r) => isFog(r.code)) ? "fog" : hourSky(rows[0]);
+    sky = skyIcon(kind, 26);
+    const pop = fmtPop(sum.precipProb);
+    sub = `${rainStory(sum.rain)}${pop ? ` · ${pop}` : ""} · ${fmt1(sum.teeTemp)}° ${t("atTee")} · ${windLine(sum.wind, sum.gust)}`;
+    if (sum.storm) sub += ` · <span class="storm">${t("storm")}</span>`;
+    if (sum.models.length > 1) sub += badge(MIX_ID);
+    else if (sum.models[0] && sum.models[0] !== "icon_d2") sub += badge(sum.models[0]);
+  }
+  box.innerHTML = `
+    <p class="round-summary">${sky}${summary}</p>
+    <p class="round-sub">${sub}</p>
+    <div class="round-actions">
+      <button class="btn primary" data-act="open-round">${t("roundWindow")}</button>
+      <button class="btn" data-act="edit-tee">${t("edit")}</button>
+    </div>`;
+}
