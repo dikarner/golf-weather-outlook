@@ -103,6 +103,11 @@ h1, h2 { margin: 0; font-weight: 700; }
   border-radius: 12px;
   padding: 0 12px;
 }
+.icon-btn.primary {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
 
 .meta {
   color: var(--muted);
