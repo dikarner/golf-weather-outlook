@@ -25,6 +25,7 @@
       <button class="icon-btn" data-act="refresh" type="button" data-i18n-title="refresh">↻</button>
     </header>
     <p class="meta" id="meta"></p>
+    <p class="hint geo-help" id="geo-help" hidden></p>
 
     <section class="card" id="round-card">
       <h2 data-i18n="roundTitle">Runde – Wetterprognose</h2>
@@ -79,7 +80,9 @@
       <p>
         <button class="btn" id="add-search-btn" type="button" data-i18n="searchAustria">In Österreich suchen</button>
         <button class="btn ghost" id="add-search-world" type="button" data-i18n="searchWorld">Alle Länder</button>
+        <button class="btn" id="add-gps-btn" type="button" data-i18n="useGps">GPS verwenden</button>
       </p>
+      <p class="hint" data-i18n="useGpsHint">Oder den Pin durch den Standort dieses Geräts ersetzen, wenn Sie dort stehen.</p>
       <div id="add-results"></div>
       <p id="add-picked" class="hint" hidden></p>
       <input type="hidden" id="add-lat" />
@@ -123,8 +126,15 @@
         <button class="btn ghost" data-act="close" type="button" data-i18n="close">Schließen</button>
       </div>
       <input type="hidden" id="edit-id" />
+      <input type="hidden" id="edit-lat" />
+      <input type="hidden" id="edit-lon" />
       <label class="field"><span data-i18n="nameToShow">Anzeigename</span><input id="edit-name" /></label>
       <label class="field"><span data-i18n="clubName">Golfclub / Untertitel</span><input id="edit-club" /></label>
+      <p>
+        <button class="btn" id="edit-gps-btn" type="button" data-i18n="useGps">GPS verwenden</button>
+      </p>
+      <p class="hint" data-i18n="useGpsHint">Oder den Pin durch den Standort dieses Geräts ersetzen, wenn Sie dort stehen.</p>
+      <p id="edit-gps-note" class="hint" hidden></p>
       <p><button class="btn primary" id="edit-save" type="button" data-i18n="save">Speichern</button></p>
     </dialog>
 
