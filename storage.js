@@ -139,3 +139,11 @@ export function loadForecast(courseId) {
     return null;
   }
 }
+
+export function clearForecast(courseId) {
+  try {
+    localStorage.removeItem(forecastCacheKey(courseId));
+  } catch {
+    /* ignore */
+  }
+}
