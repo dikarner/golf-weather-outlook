@@ -5,9 +5,9 @@ const de = {
   hereTitle: "Aktueller Standort",
   hereSub: "Aktueller Standort",
   locating: "Standort wird ermittelt…",
-  geoDenied: "Standortzugriff abgelehnt",
+  geoDenied: "Diese Website ist blockiert. In Safari: aA (links in der Adresszeile) → Website-Einstellungen → Ort → Erlauben. Dann Hier erneut tippen.",
   geoDeniedHelp:
-    "iPhone: Einstellungen → Datenschutz & Sicherheit → Ortungsdienste einschalten. Dann Safari-Websites (oder diese App) auf „Fragen“ oder „Erlauben“. In Safari auch über aA → Website-Einstellungen → Ort. Danach Hier erneut tippen.",
+    "Safari-Ortungsdienste allein reichen nicht. Diese Website (dikarner.github.io) ist separat gesperrt — oft nach „Nicht erlauben“. In Safari öffnen, aA → Website-Einstellungen → Ort → Erlauben. Oder Einstellungen → Safari → Ort → dikarner.github.io → Erlauben. Home-Screen-App danach neu öffnen.",
   geoFail: "Standort nicht verfügbar",
   geoNone: "Kein GPS in diesem Browser",
   useGps: "GPS verwenden",
@@ -115,9 +115,9 @@ const en = {
   hereTitle: "Current location",
   hereSub: "Current location",
   locating: "Finding location…",
-  geoDenied: "Location access denied",
+  geoDenied: "This website is blocked. In Safari: aA (left of the address) → Website Settings → Location → Allow. Then tap Here again.",
   geoDeniedHelp:
-    "iPhone: Settings → Privacy & Security → Location Services on. Then Safari Websites (or this app) → Ask or Allow. In Safari also aA → Website Settings → Location. Then tap Here again.",
+    "Allowing Safari in Location Services is not enough. This site (dikarner.github.io) is blocked separately — usually after Don’t Allow. Open in Safari, tap aA → Website Settings → Location → Allow. Or Settings → Safari → Location → dikarner.github.io → Allow. Then reopen the home-screen app and tap Here.",
   geoFail: "Location unavailable",
   geoNone: "No GPS in this browser",
   useGps: "Use GPS",
