@@ -34,7 +34,6 @@ import {
   saveState,
   saveForecast,
   loadForecast,
-  clearForecast,
   saveHere,
   loadHere,
 } from "./storage.js";
@@ -48,8 +47,6 @@ let status = "idle";
 let openDay = null;
 let further = false;
 let radarOn = false;
-let geoNote = "";
-let geoHelp = "";
 
 const $ = (id) => document.getElementById(id);
 
@@ -109,12 +106,7 @@ function render() {
   if (status === "cached") meta += ` · ${t("cached")}`;
   if (status === "error")
     meta = `${t("refreshFail")} · ${age ? `${t("cached")} ${age}` : t("noData")}`;
-  $("meta").textContent = geoNote || meta;
-  const help = $("geo-help");
-  if (help) {
-    help.hidden = !geoHelp;
-    help.textContent = geoHelp;
-  }
+  $("meta").textContent = meta;
   $("models-toggle").textContent = modelsOpen() ? t("hideModels") : t("allModels");
   const hereBtn = $("here-btn");
   if (hereBtn) hereBtn.classList.toggle("primary", state.activeId === HERE_ID);
@@ -163,3 +155,712 @@ function renderRound() {
       <button class="btn" data-act="edit-tee">${t("edit")}</button>
     </div>`;
 }
+
+function renderOutlook() {
+  if (!forecast) {
+    $("outlook").innerHTML = `<div class="card">${status === "loading" ? t("loadingOutlook") : t("noForecast")}</div>`;
+    return;
+  }
+  const dates = outlookDates(forecast, 16);
+  const today = todayInVienna();
+  const shown = further ? dates : dates.filter((d) => d <= shiftPlus(today, 6));
+  const extra = dates.length > shown.length;
+  const daysHtml = shown
+    .map((d) => {
+      const row = readDayMix(forecast, d);
+      if (!row) return "";
+      const hours = hoursOfDay(forecast, d)
+        .map((iso) => readHourMix(forecast, iso))
+        .filter(Boolean);
+      const storm = isStorm(row.code) || hours.some((h) => isStorm(h.code));
+      const story = [rainStory(row.precip), fmtPop(row.precipProb), windLine(row.wind, row.gust)]
+        .filter(Boolean)
+        .join(" · ");
+      const kind = daySkyKind(hours, row.sunrise, row.sunset);
+      const stormMark = storm ? ` · <span class="storm">${t("storm")}</span>` : "";
+      return `<button class="day" data-day="${d}">
+        <div>
+          <div class="when">${formatDayHeading(d)}${badge(row.model)}</div>
+        </div>
+        ${skyIcon(kind, 28)}
+        <div class="story">${story}${stormMark}</div>
+        <div class="temps">${fmt1(row.tmax)}° / ${fmt1(row.tmin)}°</div>
+      </button>`;
+    })
+    .join("");
+  $("outlook").innerHTML = `
+    <div class="toolbar">
+      <h2>${t("outlook")}</h2>
+    </div>
+    ${daysHtml}
+    ${extra ? `<div class="toolbar"><button class="btn" data-act="further">${t("further")}</button></div>` : ""}
+  `;
+}
+
+function shiftPlus(dateStr, days) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+}
+
+function hourBlock(iso, expand) {
+  const mix = readHourMix(forecast, iso);
+  if (!mix) return "";
+  const main = hourLine(mix, false, expand);
+  if (!expand) return main;
+  const subs = MODELS.map((m) => {
+    const row = readHour(forecast, iso, m.id);
+    return row ? hourLine(row, true, false) : "";
+  }).join("");
+  return main + subs;
+}
+
+function hourLine(row, sub, labelMix) {
+  const rain = row.precip != null && row.precip >= 0.05 ? fmtPrecipLocal(row.precip) : t("dry");
+  const pop = fmtPop(row.precipProb);
+  const rainCell = pop ? `${rain} <span class="pop">${pop}</span>` : rain;
+  const storm = isStorm(row.code) ? ` <span class="storm">${t("storm")}</span>` : "";
+  if (sub) {
+    return `<div class="hour-row sub">
+      <span></span>
+      <span></span>
+      <span class="t">${modelById(row.model)?.short} ${fmt1(row.temp)}°</span>
+      <span>${rainCell}${storm}</span>
+      <span>${windLine(row.wind, row.gust, row.dir)}</span>
+    </div>`;
+  }
+  const mixMark = labelMix ? badge(row.model === MIX_ID ? MIX_ID : row.model) : "";
+  return `<div class="hour-row" data-hour="${formatClock(row.time)}">
+    <span>${formatClock(row.time)}</span>
+    ${skyIcon(hourSky(row), 18)}
+    <span class="t">${fmt1(row.temp)}°${mixMark}</span>
+    <span>${rainCell}${storm}</span>
+    <span>${windLine(row.wind, row.gust, row.dir)}</span>
+  </div>`;
+}
+
+function fmtPrecipLocal(n) {
+  if (n < 1) return `${n.toFixed(1)} mm`;
+  return `${Math.round(n * 10) / 10} mm`;
+}
+
+function sparkline(isoHours) {
+  if (!forecast) return "";
+  const pts = isoHours.flatMap((iso) => minutelyForHour(forecast, iso));
+  if (pts.length < 2 || pts.every((p) => p < 0.05)) return "";
+  const max = Math.max(1, ...pts);
+  const bars = pts
+    .map((p) => `<i style="height:${Math.max(8, Math.round((p / max) * 100))}%"></i>`)
+    .join("");
+  return `<div class="spark" title="15-min rain ICON-D2">${bars}</div>`;
+}
+
+function hourHeadHtml() {
+  return `<span>${t("colTime")}</span><span></span><span>${t("colTemp")}</span><span>${t("colRain")}</span><span>${t("colWind")}</span>`;
+}
+
+function scrollHourList(wrap, hhmm) {
+  if (!wrap) return;
+  const rows = [...wrap.querySelectorAll("[data-hour]")];
+  const target = rows.find((el) => el.dataset.hour === hhmm) || rows.find((el) => el.dataset.hour >= hhmm);
+  if (!target) return;
+  wrap.scrollTop = Math.max(0, target.offsetTop);
+}
+
+function renderDaySheet() {
+  const dlg = $("day-sheet");
+  if (!openDay || !forecast) {
+    if (dlg.open) dlg.close();
+    return;
+  }
+  const row = readDayMix(forecast, openDay);
+  const hours = hoursOfDay(forecast, openDay);
+  const expand = modelsOpen();
+  const htmlHours = hours.map((iso) => hourBlock(iso, expand)).join("");
+  $("day-sheet-title").textContent = formatDayHeading(openDay);
+  $("day-sheet-summary").innerHTML = `
+    <p class="hint">${row ? `${fmt1(row.tmax)}° / ${fmt1(row.tmin)}° · ${rainStory(row.precip)}${fmtPop(row.precipProb) ? ` · ${fmtPop(row.precipProb)}` : ""}` : ""}${badge(row?.model)}</p>
+    ${openDay === todayInVienna() ? sparkline(hours.slice(0, 8)) : ""}
+  `;
+  $("day-hour-head").hidden = !htmlHours;
+  $("day-hour-head").innerHTML = htmlHours ? hourHeadHtml() : "";
+  $("day-sheet-body").innerHTML = htmlHours || `<p>${t("noHourly")}</p>`;
+  if (!dlg.open) dlg.showModal();
+  requestAnimationFrame(() => scrollHourList($("day-sheet-body"), daySheetFocusHour(openDay)));
+}
+
+function renderRoundSheet() {
+  const dlg = $("round-sheet");
+  if (dlg.dataset.show !== "1" || !forecast) {
+    return;
+  }
+  const tee = state.tees[state.activeId];
+  if (!tee) return;
+  const win = roundSlots(tee.date, tee.time);
+  const expand = modelsOpen();
+  const rows = win.slots.map((iso) => hourBlock(iso, expand)).join("");
+  const today = todayInVienna();
+  const spark = tee.date === today ? sparkline(win.slots) : "";
+  $("round-sheet-title").textContent = `${t("round")} ${tee.time}`;
+  $("round-sheet-summary").innerHTML = `
+    <p class="hint">${formatDayHeading(tee.date)} ${tee.time}–${win.endLabel.slice(-5)} · ${t("covering")} ${formatClock(win.slots[0])}–${formatClock(win.slots.at(-1))}</p>
+    ${spark}
+  `;
+  $("round-hour-head").hidden = !rows;
+  $("round-hour-head").innerHTML = rows ? hourHeadHtml() : "";
+  $("round-sheet-body").innerHTML = rows || `<p>${t("noRoundData")}</p>`;
+}
+
+async function refresh(force) {
+  const c = course();
+  const cached = loadForecast(c.id);
+  if (cached && !forecast) {
+    forecast = cached;
+    status = "cached";
+    render();
+  }
+  if (!force && cached && Date.now() - cached.fetchedAt < 10 * 60 * 1000) {
+    forecast = cached;
+    status = "ok";
+    render();
+    return;
+  }
+  status = "loading";
+  render();
+  try {
+    const data = await fetchForecast(c.lat, c.lon);
+    forecast = data;
+    saveForecast(c.id, data);
+    status = "ok";
+  } catch (err) {
+    console.error(err);
+    if (cached) {
+      forecast = cached;
+      status = "cached";
+    } else {
+      status = "error";
+    }
+  }
+  render();
+}
+
+function selectCourse(id) {
+  state.activeId = id;
+  persist();
+  forecast = loadForecast(id);
+  openDay = null;
+  radarOn = false;
+  hideRadar($("radar-wrap"));
+  $("radar-btn").textContent = t("radar");
+  refresh(false);
+}
+
+function geoError(err) {
+  const code = err && err.code;
+  if (code === 1) return t("geoDenied");
+  return t("geoFail");
+}
+
+async function reverseName(lat, lon) {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lon),
+    lang: lang === "de" ? "de" : "en",
+  });
+  const data = await fetch(`https://photon.komoot.io/reverse?${params}`).then((r) => r.json());
+  const p = data.features?.[0]?.properties;
+  if (!p) return { name: t("here"), club: t("hereSub") };
+  const name = p.name || p.city || p.town || p.village || t("here");
+  const club = [p.city, p.state, p.country].filter((x) => x && x !== name).join(" · ");
+  return { name, club: club || t("hereSub") };
+}
+
+async function useCurrentLocation() {
+  if (!navigator.geolocation) {
+    $("meta").textContent = t("geoNone");
+    return;
+  }
+  $("meta").textContent = t("locating");
+  try {
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 120000,
+      });
+    });
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    let label = { name: t("here"), club: t("hereSub") };
+    try {
+      label = await reverseName(lat, lon);
+    } catch {
+      /* name is optional */
+    }
+    herePlace = {
+      id: HERE_ID,
+      name: label.name,
+      club: label.club,
+      lat,
+      lon,
+      golf: false,
+    };
+    saveHere(herePlace);
+    state.activeId = HERE_ID;
+    persist();
+    openDay = null;
+    radarOn = false;
+    hideRadar($("radar-wrap"));
+    $("radar-btn").textContent = t("radar");
+    refresh(true);
+  } catch (err) {
+    $("meta").textContent = geoError(err);
+  }
+}
+
+function renderPlaces() {
+  $("places-list").innerHTML = state.courses
+    .map((c, i) => {
+      const def = c.id === state.activeId ? ` · ${t("current")}` : "";
+      return `<div class="list-item" data-id="${c.id}">
+        <div class="grow">
+          <div class="name">${c.name}</div>
+          <div class="sub">${c.club || ""}${def}</div>
+          <div class="flag-line">
+            <label class="flag-check">
+              <input type="checkbox" data-act="golf" ${c.golf ? "checked" : ""} />
+              ${t("golfPlace")}
+            </label>
+            <button class="icon-btn info-btn" type="button" data-act="golf-info" title="${t("golfInfoTitle")}">i</button>
+          </div>
+        </div>
+        <div class="row-actions">
+          <button class="btn" data-act="top" title="${t("moveTop")}" ${i === 0 ? "disabled" : ""}>⤒</button>
+          <button class="btn" data-act="up" title="${t("moveUp")}" ${i === 0 ? "disabled" : ""}>↑</button>
+          <button class="btn" data-act="down" title="${t("moveDown")}" ${i === state.courses.length - 1 ? "disabled" : ""}>↓</button>
+          <button class="btn" data-act="bottom" title="${t("moveBottom")}" ${i === state.courses.length - 1 ? "disabled" : ""}>⤓</button>
+          <button class="btn" data-act="edit-place">${t("edit")}</button>
+          <button class="btn" data-act="use">${t("open")}</button>
+          <button class="btn danger" data-act="del">✕</button>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+function renderModelsInfo() {
+  const horizons = [0, 1, 2, 3, 4, 5, 6];
+  const head = horizons
+    .map((d) => `<th>${d === 0 ? t("today") : d === 1 ? t("tomorrow") : d >= 6 ? "+6…" : `+${d}`}</th>`)
+    .join("");
+  const rows = MODELS.map((m) => {
+    const cells = horizons
+      .map((d) => {
+        const w = modelWeight(m.id, d);
+        return `<td>${w || "–"}</td>`;
+      })
+      .join("");
+    return `<tr><th>${m.short}</th>${cells}</tr>`;
+  }).join("");
+  const about = MODELS.map(
+    (m) => `<h3>${m.name} <span class="badge ${m.id === "ecmwf_ifs025" ? "ifs" : m.short === "D2" ? "" : "eu"}">${m.short}</span></h3>
+      <p class="hint">${t(`modelAbout_${m.short}`)}</p>`
+  ).join("");
+  $("models-info-body").innerHTML = `
+    <p>${t("modelsInfoLead")}</p>
+    ${about}
+    <h3>${t("modelsInfoWeights")}</h3>
+    <div class="table-wrap">
+      <table class="weight-table">
+        <thead><tr><th></th>${head}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <p class="hint">${t("modelsInfoCodes")}</p>
+    <p class="hint">${t("modelsInfoPop")}</p>
+  `;
+}
+
+function renderSwitcher() {
+  $("switcher-list").innerHTML = state.courses
+    .map((c) => {
+      const on = c.id === state.activeId ? " primary" : "";
+      return `<button class="btn${on}" style="width:100%;margin:6px 0;text-align:left" data-id="${c.id}">
+        <strong>${c.name}</strong><br><span class="hint">${c.club || ""}</span>
+      </button>`;
+    })
+    .join("");
+}
+
+document.addEventListener("click", (e) => {
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  const dayBtn = e.target.closest("[data-day]");
+  if (dayBtn) {
+    openDay = dayBtn.dataset.day;
+    render();
+    return;
+  }
+  if (!act) return;
+  if (act === "refresh") refresh(true);
+  if (act === "switch") {
+    renderSwitcher();
+    $("switcher").showModal();
+  }
+  if (act === "places") {
+    renderPlaces();
+    $("places").showModal();
+  }
+  if (act === "here") useCurrentLocation();
+  if (act === "further") {
+    further = true;
+    render();
+  }
+  if (act === "models") {
+    state.expanded[state.activeId] = !modelsOpen();
+    persist();
+    render();
+  }
+  if (act === "models-info") {
+    renderModelsInfo();
+    $("models-info").showModal();
+  }
+  if (act === "golf-info") {
+    $("golf-info").showModal();
+  }
+  if (act === "edit-tee") {
+    const tee = state.tees[state.activeId] || {};
+    $("tee-date").value = tee.date || todayInVienna();
+    $("tee-time").value = tee.time || "09:00";
+    $("tee-editor").showModal();
+  }
+  if (act === "save-tee") {
+    state.tees[state.activeId] = {
+      date: $("tee-date").value,
+      time: $("tee-time").value,
+    };
+    persist();
+    $("tee-editor").close();
+    render();
+  }
+  if (act === "clear-tee") {
+    delete state.tees[state.activeId];
+    persist();
+    $("tee-editor").close();
+    render();
+  }
+  if (act === "open-round") {
+    $("round-sheet").dataset.show = "1";
+    if (!$("round-sheet").open) $("round-sheet").showModal();
+    renderRoundSheet();
+  }
+  if (act === "close-day") {
+    openDay = null;
+    $("day-sheet").close();
+  }
+  if (act === "close-round") {
+    $("round-sheet").dataset.show = "0";
+    $("round-sheet").close();
+  }
+  if (act === "close") {
+    e.target.closest("dialog")?.close();
+  }
+  if (act === "add-course") {
+    $("add-name").value = "";
+    $("add-search").value = "";
+    $("add-results").innerHTML = "";
+    $("add-lat").value = "";
+    $("add-lon").value = "";
+    $("add-where").value = "";
+    $("add-picked").hidden = true;
+    $("add-picked").textContent = "";
+    $("add-golf").checked = false;
+    $("add-sheet").showModal();
+  }
+  if (act === "radar") {
+    radarOn = !radarOn;
+    $("radar-btn").textContent = radarOn ? t("hideRadar") : t("radar");
+    if (radarOn) {
+      const c = course();
+      showRadar($("radar-wrap"), c.lat, c.lon);
+    } else {
+      hideRadar($("radar-wrap"));
+    }
+  }
+});
+
+$("switcher-list").addEventListener("click", (e) => {
+  const id = e.target.closest("[data-id]")?.dataset.id;
+  if (!id) return;
+  $("switcher").close();
+  selectCourse(id);
+});
+
+$("places-list").addEventListener("change", (e) => {
+  const box = e.target.closest("input[data-act='golf']");
+  if (!box) return;
+  const row = box.closest(".list-item");
+  const c = state.courses.find((x) => x.id === row?.dataset.id);
+  if (!c) return;
+  c.golf = box.checked;
+  persist();
+  render();
+});
+
+$("places-list").addEventListener("click", (e) => {
+  const row = e.target.closest(".list-item");
+  if (!row) return;
+  const id = row.dataset.id;
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  const i = state.courses.findIndex((c) => c.id === id);
+  if (act === "edit-place") {
+    const c = state.courses[i];
+    if (!c) return;
+    $("edit-id").value = c.id;
+    $("edit-name").value = c.name;
+    $("edit-club").value = c.club || "";
+    $("edit-place").showModal();
+    return;
+  }
+  if (act === "use") {
+    $("places").close();
+    selectCourse(id);
+  }
+  if (act === "del") {
+    if (state.courses.length < 2) return;
+    state.courses.splice(i, 1);
+    if (state.activeId === id) state.activeId = state.courses[0].id;
+    persist();
+    renderPlaces();
+    render();
+  }
+  if (act === "top" && i > 0) {
+    const [item] = state.courses.splice(i, 1);
+    state.courses.unshift(item);
+    persist();
+    renderPlaces();
+  }
+  if (act === "up" && i > 0) {
+    [state.courses[i - 1], state.courses[i]] = [state.courses[i], state.courses[i - 1]];
+    persist();
+    renderPlaces();
+  }
+  if (act === "down" && i < state.courses.length - 1) {
+    [state.courses[i + 1], state.courses[i]] = [state.courses[i], state.courses[i + 1]];
+    persist();
+    renderPlaces();
+  }
+  if (act === "bottom" && i < state.courses.length - 1) {
+    const [item] = state.courses.splice(i, 1);
+    state.courses.push(item);
+    persist();
+    renderPlaces();
+  }
+});
+
+$("add-search-btn").addEventListener("click", () => searchPlaces(false));
+$("add-search-world").addEventListener("click", () => searchPlaces(true));
+$("add-search").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    searchPlaces(false);
+  }
+});
+
+function placeWhere(h) {
+  const bits = [];
+  if (h.admin3 && h.admin3 !== h.name) bits.push(h.admin3);
+  let bezirk = h.admin2 || "";
+  bezirk = bezirk.replace(/^Politischer /, "").replace(/^Regierungsbezirk /, "");
+  if (bezirk && bezirk !== h.admin3 && bezirk !== h.admin1) bits.push(bezirk);
+  if (h.admin1) bits.push(h.admin1);
+  if (h.country) bits.push(h.country);
+  return bits.join(" · ");
+}
+
+function kmBetween(aLat, aLon, bLat, bLon) {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLon = ((bLon - aLon) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+
+async function searchGolfPhoton(q, everywhere) {
+  const params = new URLSearchParams({
+    q,
+    limit: "8",
+    lang: lang === "de" ? "de" : "en",
+  });
+  if (!everywhere) params.set("bbox", "9.5,46.38,17.2,49.02");
+  const data = await fetch(`https://photon.komoot.io/api/?${params}`).then((r) => r.json());
+  return (data.features || [])
+    .filter((f) => f.properties?.osm_value === "golf_course" && f.properties?.name)
+    .map((f) => {
+      const [lon, lat] = f.geometry.coordinates;
+      const p = f.properties;
+      const where = [p.city, p.county, p.state, p.country].filter(Boolean).join(" · ");
+      return { name: p.name, lat, lon, where, golf: true };
+    });
+}
+
+async function nearestGolfCourse(lat, lon) {
+  const q = `[out:json][timeout:8];nwr["leisure"="golf_course"](around:8000,${lat},${lon});out tags center;`;
+  const res = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+    body: `data=${encodeURIComponent(q)}`,
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  let best = null;
+  for (const e of data.elements || []) {
+    const name = e.tags?.name;
+    const elat = e.lat ?? e.center?.lat;
+    const elon = e.lon ?? e.center?.lon;
+    if (!name || elat == null || elon == null) continue;
+    const km = kmBetween(lat, lon, elat, elon);
+    if (!best || km < best.km) best = { name, km };
+  }
+  return best;
+}
+
+function samePoint(a, b) {
+  return Math.abs(a.lat - b.lat) < 0.002 && Math.abs(a.lon - b.lon) < 0.002;
+}
+
+function hitButton(h) {
+  const golf = h.golf ? ` · ${t("golfHit")}` : "";
+  const where = h.where || "";
+  return `<button class="search-hit" type="button" data-lat="${h.lat}" data-lon="${h.lon}" data-name="${encodeURIComponent(h.name)}" data-where="${encodeURIComponent(where)}" data-golf="${h.golf ? "1" : ""}">
+        <strong>${h.name}</strong><br>
+        <span class="hint">${where}${golf}</span>
+      </button>`;
+}
+
+async function searchPlaces(everywhere) {
+  const q = $("add-search").value.trim();
+  if (!q) return;
+  $("add-results").textContent = t("searching");
+  const params = new URLSearchParams({
+    name: q,
+    count: "10",
+    language: lang,
+    format: "json",
+  });
+  if (!everywhere) params.set("country", "AT");
+  const [geoRes, clubRes] = await Promise.allSettled([
+    fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`).then((r) => r.json()),
+    searchGolfPhoton(q, everywhere),
+  ]);
+  const geo = geoRes.status === "fulfilled" ? geoRes.value : { results: [] };
+  const clubs = clubRes.status === "fulfilled" ? clubRes.value : [];
+  let places = (geo.results || []).map((h) => ({
+    name: h.name,
+    lat: h.latitude,
+    lon: h.longitude,
+    where: placeWhere(h),
+    golf: false,
+  }));
+  if (!places.length && !clubs.length && !everywhere) {
+    $("add-results").textContent = t("nothingAt");
+    return searchPlaces(true);
+  }
+  const merged = [];
+  for (const c of clubs) {
+    if (!merged.some((m) => samePoint(m, c))) merged.push(c);
+  }
+  for (const p of places) {
+    if (!merged.some((m) => samePoint(m, p))) merged.push(p);
+  }
+  if (!merged.length) {
+    $("add-results").textContent = t("noMatches");
+    return;
+  }
+  $("add-results").innerHTML = merged.map(hitButton).join("");
+}
+
+$("add-results").addEventListener("click", async (e) => {
+  const hit = e.target.closest(".search-hit");
+  if (!hit) return;
+  const name = decodeURIComponent(hit.dataset.name);
+  let where = decodeURIComponent(hit.dataset.where || "");
+  const lat = Number(hit.dataset.lat);
+  const lon = Number(hit.dataset.lon);
+  const isGolf = hit.dataset.golf === "1";
+  $("add-lat").value = hit.dataset.lat;
+  $("add-lon").value = hit.dataset.lon;
+  $("add-where").value = where;
+  if (!$("add-name").value) $("add-name").value = name;
+  if (isGolf) $("add-golf").checked = true;
+  $("add-picked").hidden = false;
+  $("add-picked").textContent = where ? `${name} — ${where}` : name;
+  $("add-results").querySelectorAll(".search-hit").forEach((b) => b.classList.remove("picked"));
+  hit.classList.add("picked");
+  if (!isGolf && Number.isFinite(lat) && Number.isFinite(lon)) {
+    try {
+      const golf = await nearestGolfCourse(lat, lon);
+      if (golf && golf.km <= 6) {
+        $("add-where").value = golf.name;
+        $("add-picked").textContent = t("golfNearby", { name: golf.name });
+        if (golf.km <= 2.5) $("add-golf").checked = true;
+      }
+    } catch {
+      /* OSM optional */
+    }
+  }
+});
+
+$("edit-save").addEventListener("click", () => {
+  const id = $("edit-id").value;
+  const c = state.courses.find((x) => x.id === id);
+  const name = $("edit-name").value.trim();
+  if (!c || !name) return;
+  c.name = name;
+  c.club = $("edit-club").value.trim();
+  persist();
+  $("edit-place").close();
+  renderPlaces();
+  render();
+});
+
+$("add-save").addEventListener("click", () => {
+  const name = $("add-name").value.trim();
+  const lat = Number($("add-lat").value);
+  const lon = Number($("add-lon").value);
+  if (!name || Number.isNaN(lat) || Number.isNaN(lon)) return;
+  const id = `c_${Date.now()}`;
+  state.courses.push({
+    id,
+    name,
+    club: $("add-where").value,
+    lat,
+    lon,
+    golf: $("add-golf").checked,
+  });
+  persist();
+  $("add-sheet").close();
+  $("places").close();
+  selectCourse(id);
+});
+
+$("day-sheet").addEventListener("close", () => {
+  openDay = null;
+});
+$("round-sheet").addEventListener("close", () => {
+  $("round-sheet").dataset.show = "0";
+});
+document.querySelectorAll("dialog").forEach((d) => {
+  d.addEventListener("click", (e) => {
+    if (e.target === d) d.close();
+  });
+});
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
+}
+
+applyStaticI18n();
+refresh(false);
+render();
