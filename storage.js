@@ -1,4 +1,6 @@
 const KEY = "golf-outlook-v1";
+const HERE_KEY = "golf-outlook-here";
+export const HERE_ID = "here";
 
 export const SEED_COURSES = [
   {
@@ -73,7 +75,11 @@ export function loadState() {
       ...c,
       golf: typeof c.golf === "boolean" ? c.golf : seedIds.has(c.id),
     }));
-    if (!parsed.courses.some((c) => c.id === parsed.activeId)) {
+    const hereOk = parsed.activeId === HERE_ID && loadHere();
+    if (
+      !hereOk &&
+      !parsed.courses.some((c) => c.id === parsed.activeId)
+    ) {
       parsed.activeId = parsed.courses[0].id;
     }
     parsed.tees = parsed.tees || {};
@@ -105,6 +111,23 @@ export function saveForecast(courseId, data) {
     localStorage.setItem(forecastCacheKey(courseId), JSON.stringify(data));
   } catch {
     /* quota */
+  }
+}
+
+export function saveHere(place) {
+  try {
+    localStorage.setItem(HERE_KEY, JSON.stringify(place));
+  } catch {
+    /* quota */
+  }
+}
+
+export function loadHere() {
+  try {
+    const raw = localStorage.getItem(HERE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
   }
 }
 
