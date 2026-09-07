@@ -29,15 +29,19 @@ import {
   modelWeight,
 } from "./weather.js";
 import {
+  HERE_ID,
   loadState,
   saveState,
   saveForecast,
   loadForecast,
+  saveHere,
+  loadHere,
 } from "./storage.js";
 import { showRadar, hideRadar } from "./radar.js";
 import { t, lang, applyStaticI18n } from "./i18n.js";
 
 const state = loadState();
+let herePlace = loadHere();
 let forecast = null;
 let status = "idle";
 let openDay = null;
@@ -47,6 +51,7 @@ let radarOn = false;
 const $ = (id) => document.getElementById(id);
 
 function course() {
+  if (state.activeId === HERE_ID && herePlace) return herePlace;
   return state.courses.find((c) => c.id === state.activeId) || state.courses[0];
 }
 
@@ -103,6 +108,8 @@ function render() {
     meta = `${t("refreshFail")} · ${age ? `${t("cached")} ${age}` : t("noData")}`;
   $("meta").textContent = meta;
   $("models-toggle").textContent = modelsOpen() ? t("hideModels") : t("allModels");
+  const hereBtn = $("here-btn");
+  if (hereBtn) hereBtn.classList.toggle("primary", state.activeId === HERE_ID);
   renderRound();
   renderOutlook();
   renderDaySheet();
@@ -348,6 +355,69 @@ function selectCourse(id) {
   refresh(false);
 }
 
+function geoError(err) {
+  const code = err && err.code;
+  if (code === 1) return t("geoDenied");
+  return t("geoFail");
+}
+
+async function reverseName(lat, lon) {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lon),
+    lang: lang === "de" ? "de" : "en",
+  });
+  const data = await fetch(`https://photon.komoot.io/reverse?${params}`).then((r) => r.json());
+  const p = data.features?.[0]?.properties;
+  if (!p) return { name: t("here"), club: t("hereSub") };
+  const name = p.name || p.city || p.town || p.village || t("here");
+  const club = [p.city, p.state, p.country].filter((x) => x && x !== name).join(" · ");
+  return { name, club: club || t("hereSub") };
+}
+
+async function useCurrentLocation() {
+  if (!navigator.geolocation) {
+    $("meta").textContent = t("geoNone");
+    return;
+  }
+  $("meta").textContent = t("locating");
+  try {
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 120000,
+      });
+    });
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    let label = { name: t("here"), club: t("hereSub") };
+    try {
+      label = await reverseName(lat, lon);
+    } catch {
+      /* name is optional */
+    }
+    herePlace = {
+      id: HERE_ID,
+      name: label.name,
+      club: label.club,
+      lat,
+      lon,
+      golf: false,
+    };
+    saveHere(herePlace);
+    state.activeId = HERE_ID;
+    persist();
+    openDay = null;
+    radarOn = false;
+    hideRadar($("radar-wrap"));
+    $("radar-btn").textContent = t("radar");
+    refresh(true);
+  } catch (err) {
+    $("meta").textContent = geoError(err);
+  }
+}
+
 function renderPlaces() {
   $("places-list").innerHTML = state.courses
     .map((c, i) => {
@@ -440,6 +510,7 @@ document.addEventListener("click", (e) => {
     renderPlaces();
     $("places").showModal();
   }
+  if (act === "here") useCurrentLocation();
   if (act === "further") {
     further = true;
     render();
