@@ -248,15 +248,21 @@ function sparkline(isoHours) {
   if (!forecast) return "";
   const pts = [];
   isoHours.forEach((iso, hi) => {
-    minutelyForHour(forecast, iso).forEach((p) => pts.push({ p, hi }));
+    const mins = minutelyForHour(forecast, iso);
+    if (mins.length) {
+      mins.forEach((p) => pts.push({ p, hi, wide: false }));
+      return;
+    }
+    const row = readHour(forecast, iso, "icon_d2") || readHourMix(forecast, iso);
+    if (row && row.precip != null) pts.push({ p: row.precip, hi, wide: true });
   });
-  if (pts.length < 2 || pts.every((x) => x.p < 0.05)) return "";
+  if (pts.length < 2) return "";
   const max = Math.max(1, ...pts.map((x) => x.p));
   const bars = pts
-    .map(({ p, hi }) => {
+    .map(({ p, hi, wide }) => {
       const h = Math.max(8, Math.round((p / max) * 100));
       const shade = hi % 2 === 0 ? "sa" : "sb";
-      return `<i class="${shade}" style="height:${h}%"></i>`;
+      return `<i class="${shade}${wide ? " wide" : ""}" style="height:${h}%"></i>`;
     })
     .join("");
   return `<div class="spark" title="15-min rain ICON-D2">${bars}</div>`;
