@@ -8,6 +8,8 @@
   --green: #0d5c2e;
   --green-soft: #e4f0e6;
   --rain: #0a4d86;
+  --spark-a: #8ebde4;
+  --spark-b: #0a4d86;
   --storm: #8e1d1d;
   --warn: #7a4e00;
   --input: #fff;
@@ -29,6 +31,8 @@
     --green: #5caf72;
     --green-soft: #1e3324;
     --rain: #8ec0ea;
+    --spark-a: #9fd0f2;
+    --spark-b: #3d7eaf;
     --storm: #ee8a8a;
     --warn: #e0b15a;
     --input: #1c1a14;
@@ -268,10 +272,11 @@ h1, h2 { margin: 0; font-weight: 700; }
 .spark i {
   display: block;
   flex: 1;
-  background: var(--rain);
+  background: var(--spark-a);
   min-height: 2px;
   border-radius: 1px;
 }
+.spark i.sb { background: var(--spark-b); }
 
 #radar-wrap { margin-top: 8px; }
 #radar-map { height: 220px; border-radius: 12px; }
