@@ -250,7 +250,7 @@ function sparkline(isoHours) {
   isoHours.forEach((iso, hi) => {
     minutelyForHour(forecast, iso).forEach((p) => pts.push({ p, hi }));
   });
-  if (pts.length < 2 || pts.every((x) => x.p < 0.05)) return "";
+  if (pts.length < 2) return "";
   const max = Math.max(1, ...pts.map((x) => x.p));
   const bars = pts
     .map(({ p, hi }) => {
