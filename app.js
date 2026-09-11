@@ -230,7 +230,7 @@ function hourLine(row, sub, labelMix) {
     </div>`;
   }
   const mixMark = labelMix ? badge(row.model === MIX_ID ? MIX_ID : row.model) : "";
-  return `<div class="hour-row" data-hour="${formatClock(row.time)}">
+  return `<div class="hour-row" data-hour="${formatClock(row.time)}" data-iso="${row.time}">
     <span>${formatClock(row.time)}</span>
     ${skyIcon(hourSky(row), 18)}
     <span class="t">${fmt1(row.temp)}°${mixMark}</span>
@@ -246,13 +246,62 @@ function fmtPrecipLocal(n) {
 
 function sparkline(isoHours) {
   if (!forecast) return "";
-  const pts = isoHours.flatMap((iso) => minutelyForHour(forecast, iso));
-  if (pts.length < 2 || pts.every((p) => p < 0.05)) return "";
-  const max = Math.max(1, ...pts);
+  const pts = [];
+  isoHours.forEach((iso, hi) => {
+    minutelyForHour(forecast, iso).forEach((p) => pts.push({ p, hi }));
+  });
+  if (pts.length < 2 || pts.every((x) => x.p < 0.05)) return "";
+  const max = Math.max(1, ...pts.map((x) => x.p));
   const bars = pts
-    .map((p) => `<i style="height:${Math.max(8, Math.round((p / max) * 100))}%"></i>`)
+    .map(({ p, hi }) => {
+      const h = Math.max(8, Math.round((p / max) * 100));
+      const shade = hi % 2 === 0 ? "sa" : "sb";
+      return `<i class="${shade}" style="height:${h}%"></i>`;
+    })
     .join("");
   return `<div class="spark" title="15-min rain ICON-D2">${bars}</div>`;
+}
+
+function firstVisibleHour(wrap) {
+  if (!wrap) return "";
+  const box = wrap.getBoundingClientRect();
+  const top = box.top + 4;
+  const bottom = box.bottom - 4;
+  const rows = [...wrap.querySelectorAll("[data-hour]")];
+  const hit = rows.find((el) => {
+    const r = el.getBoundingClientRect();
+    return r.bottom > top && r.top < bottom;
+  }) || rows[0];
+  return hit?.dataset.iso || hit?.dataset.hour || "";
+}
+
+function hoursFromClock(allHours, hhmm, count = 8) {
+  let i = allHours.indexOf(hhmm);
+  if (i < 0) i = allHours.findIndex((iso) => formatClock(iso) === hhmm);
+  if (i < 0) return allHours.slice(0, count);
+  return allHours.slice(i, i + count);
+}
+
+let daySparkHour = "";
+let daySparkRaf = 0;
+
+function updateDaySpark() {
+  const el = $("day-spark");
+  if (!el || !forecast || !openDay) return;
+  const wrap = $("day-sheet-body");
+  const hhmm = firstVisibleHour(wrap);
+  const html = sparkline(hoursFromClock(hoursOfDay(forecast, openDay), hhmm, 8));
+  if (hhmm === daySparkHour && el.innerHTML === html) return;
+  daySparkHour = hhmm;
+  el.innerHTML = html;
+}
+
+function onDayScroll() {
+  if (daySparkRaf) return;
+  daySparkRaf = requestAnimationFrame(() => {
+    daySparkRaf = 0;
+    updateDaySpark();
+  });
 }
 
 function hourHeadHtml() {
@@ -280,13 +329,22 @@ function renderDaySheet() {
   $("day-sheet-title").textContent = formatDayHeading(openDay);
   $("day-sheet-summary").innerHTML = `
     <p class="hint">${row ? `${fmt1(row.tmax)}° / ${fmt1(row.tmin)}° · ${rainStory(row.precip)}${fmtPop(row.precipProb) ? ` · ${fmtPop(row.precipProb)}` : ""}` : ""}${badge(row?.model)}</p>
-    ${openDay === todayInVienna() ? sparkline(hours.slice(0, 8)) : ""}
+    <div id="day-spark"></div>
   `;
   $("day-hour-head").hidden = !htmlHours;
   $("day-hour-head").innerHTML = htmlHours ? hourHeadHtml() : "";
-  $("day-sheet-body").innerHTML = htmlHours || `<p>${t("noHourly")}</p>`;
+  const body = $("day-sheet-body");
+  body.innerHTML = htmlHours || `<p>${t("noHourly")}</p>`;
+  if (!body.dataset.sparkScroll) {
+    body.addEventListener("scroll", onDayScroll, { passive: true });
+    body.dataset.sparkScroll = "1";
+  }
   if (!dlg.open) dlg.showModal();
-  requestAnimationFrame(() => scrollHourList($("day-sheet-body"), daySheetFocusHour(openDay)));
+  requestAnimationFrame(() => {
+    scrollHourList(body, daySheetFocusHour(openDay));
+    daySparkHour = "";
+    updateDaySpark();
+  });
 }
 
 function renderRoundSheet() {
@@ -299,8 +357,7 @@ function renderRoundSheet() {
   const win = roundSlots(tee.date, tee.time);
   const expand = modelsOpen();
   const rows = win.slots.map((iso) => hourBlock(iso, expand)).join("");
-  const today = todayInVienna();
-  const spark = tee.date === today ? sparkline(win.slots) : "";
+  const spark = sparkline(win.slots);
   $("round-sheet-title").textContent = `${t("round")} ${tee.time}`;
   $("round-sheet-summary").innerHTML = `
     <p class="hint">${formatDayHeading(tee.date)} ${tee.time}–${win.endLabel.slice(-5)} · ${t("covering")} ${formatClock(win.slots[0])}–${formatClock(win.slots.at(-1))}</p>
@@ -846,7 +903,12 @@ $("add-save").addEventListener("click", () => {
 });
 
 $("day-sheet").addEventListener("close", () => {
+  if (daySparkRaf) {
+    cancelAnimationFrame(daySparkRaf);
+    daySparkRaf = 0;
+  }
   openDay = null;
+  daySparkHour = "";
 });
 $("round-sheet").addEventListener("close", () => {
   $("round-sheet").dataset.show = "0";
