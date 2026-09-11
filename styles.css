@@ -277,6 +277,7 @@ h1, h2 { margin: 0; font-weight: 700; }
   border-radius: 1px;
 }
 .spark i.sb { background: var(--spark-b); }
+.spark i.wide { flex: 4; }
 
 #radar-wrap { margin-top: 8px; }
 #radar-map { height: 220px; border-radius: 12px; }
