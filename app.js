@@ -265,7 +265,7 @@ function sparkline(isoHours) {
       return `<i class="${shade}${wide ? " wide" : ""}" style="height:${h}%"></i>`;
     })
     .join("");
-  return `<div class="spark" title="15-min rain ICON-D2">${bars}</div>`;
+  return `<div class="spark" title="Rain forecast (15-min ICON-D2 / hourly fallback)">${bars}</div>`;
 }
 
 function firstVisibleHour(wrap) {
