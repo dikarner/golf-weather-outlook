@@ -2,7 +2,7 @@
 
 Personal golf-planning weather for Austrian courses. Default course is **Atzenbrugg**.
 
-Live site: **https://dikarner.github.io/golf-weather-outlook/**
+Live site (after Pages is on): **https://dikarner.github.io/golf-weather-outlook/**
 
 ## On iPhone
 
@@ -15,6 +15,6 @@ Live site: **https://dikarner.github.io/golf-weather-outlook/**
 - Optional **+ All models** on the current course.
 - A **round window**: you enter a date and a 24h tee time to the minute (e.g. 11:12). The app covers the 5 hours from that start.
 - Radar (RainViewer) when you turn it on.
-- Places you can add, remove, and reorder. Stored in this browser only.
+- Places you can add, remove, and reorder. Stored in this browser only. **Sichern** / **Laden** copies the list as JSON (iPhone ↔ Mac via AirDrop, or Safari ↔ home-screen app).
 
 Data via [Open-Meteo](https://open-meteo.com/) (DWD, CHMI, ECMWF). Personal / non-commercial use.

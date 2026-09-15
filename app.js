@@ -34,8 +34,11 @@ import {
   saveState,
   saveForecast,
   loadForecast,
+  clearForecast,
   saveHere,
   loadHere,
+  snapshot,
+  parseSnapshot,
 } from "./storage.js";
 import { showRadar, hideRadar } from "./radar.js";
 import { t, lang, applyStaticI18n } from "./i18n.js";
@@ -47,6 +50,8 @@ let status = "idle";
 let openDay = null;
 let further = false;
 let radarOn = false;
+let geoNote = "";
+let geoHelp = "";
 
 const $ = (id) => document.getElementById(id);
 
@@ -106,7 +111,12 @@ function render() {
   if (status === "cached") meta += ` · ${t("cached")}`;
   if (status === "error")
     meta = `${t("refreshFail")} · ${age ? `${t("cached")} ${age}` : t("noData")}`;
-  $("meta").textContent = meta;
+  $("meta").textContent = geoNote || meta;
+  const help = $("geo-help");
+  if (help) {
+    help.hidden = !geoHelp;
+    help.textContent = geoHelp;
+  }
   $("models-toggle").textContent = modelsOpen() ? t("hideModels") : t("allModels");
   const hereBtn = $("here-btn");
   if (hereBtn) hereBtn.classList.toggle("primary", state.activeId === HERE_ID);
@@ -230,7 +240,7 @@ function hourLine(row, sub, labelMix) {
     </div>`;
   }
   const mixMark = labelMix ? badge(row.model === MIX_ID ? MIX_ID : row.model) : "";
-  return `<div class="hour-row" data-hour="${formatClock(row.time)}" data-iso="${row.time}">
+  return `<div class="hour-row" data-hour="${formatClock(row.time)}">
     <span>${formatClock(row.time)}</span>
     ${skyIcon(hourSky(row), 18)}
     <span class="t">${fmt1(row.temp)}°${mixMark}</span>
@@ -265,49 +275,37 @@ function sparkline(isoHours) {
       return `<i class="${shade}${wide ? " wide" : ""}" style="height:${h}%"></i>`;
     })
     .join("");
-  return `<div class="spark" title="Rain forecast (15-min ICON-D2 / hourly fallback)">${bars}</div>`;
+  return `<div class="spark" title="15-min rain ICON-D2">${bars}</div>`;
 }
 
 function firstVisibleHour(wrap) {
   if (!wrap) return "";
-  const box = wrap.getBoundingClientRect();
-  const top = box.top + 4;
-  const bottom = box.bottom - 4;
+  const top = wrap.scrollTop;
   const rows = [...wrap.querySelectorAll("[data-hour]")];
-  const hit = rows.find((el) => {
-    const r = el.getBoundingClientRect();
-    return r.bottom > top && r.top < bottom;
-  }) || rows[0];
-  return hit?.dataset.iso || hit?.dataset.hour || "";
+  const hit = rows.find((el) => el.offsetTop + el.offsetHeight > top + 4) || rows[0];
+  return hit?.dataset.hour || "";
 }
 
 function hoursFromClock(allHours, hhmm, count = 8) {
-  let i = allHours.indexOf(hhmm);
-  if (i < 0) i = allHours.findIndex((iso) => formatClock(iso) === hhmm);
+  const i = allHours.findIndex((iso) => formatClock(iso) === hhmm);
   if (i < 0) return allHours.slice(0, count);
   return allHours.slice(i, i + count);
 }
 
 let daySparkHour = "";
-let daySparkRaf = 0;
 
 function updateDaySpark() {
   const el = $("day-spark");
   if (!el || !forecast || !openDay) return;
   const wrap = $("day-sheet-body");
   const hhmm = firstVisibleHour(wrap);
-  const html = sparkline(hoursFromClock(hoursOfDay(forecast, openDay), hhmm, 8));
-  if (hhmm === daySparkHour && el.innerHTML === html) return;
+  if (hhmm === daySparkHour && el.childElementCount) return;
   daySparkHour = hhmm;
-  el.innerHTML = html;
+  el.innerHTML = sparkline(hoursFromClock(hoursOfDay(forecast, openDay), hhmm, 8));
 }
 
 function onDayScroll() {
-  if (daySparkRaf) return;
-  daySparkRaf = requestAnimationFrame(() => {
-    daySparkRaf = 0;
-    updateDaySpark();
-  });
+  requestAnimationFrame(updateDaySpark);
 }
 
 function hourHeadHtml() {
@@ -342,8 +340,8 @@ function renderDaySheet() {
   const body = $("day-sheet-body");
   body.innerHTML = htmlHours || `<p>${t("noHourly")}</p>`;
   if (!body.dataset.sparkScroll) {
-    body.addEventListener("scroll", onDayScroll, { passive: true });
     body.dataset.sparkScroll = "1";
+    body.addEventListener("scroll", onDayScroll, { passive: true });
   }
   if (!dlg.open) dlg.showModal();
   requestAnimationFrame(() => {
@@ -413,6 +411,8 @@ function selectCourse(id) {
   forecast = loadForecast(id);
   openDay = null;
   radarOn = false;
+  geoNote = "";
+  geoHelp = "";
   hideRadar($("radar-wrap"));
   $("radar-btn").textContent = t("radar");
   refresh(false);
@@ -420,8 +420,35 @@ function selectCourse(id) {
 
 function geoError(err) {
   const code = err && err.code;
+  if (code === 0) return t("geoNone");
   if (code === 1) return t("geoDenied");
   return t("geoFail");
+}
+
+function readGps() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject({ code: 0 });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 0,
+    });
+  });
+}
+
+function fmtDist(km) {
+  if (!Number.isFinite(km)) return "";
+  if (km < 0.1) return `${Math.max(1, Math.round(km * 1000))} m`;
+  if (km < 10) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+}
+
+function showGeoIssue(err) {
+  geoNote = geoError(err);
+  geoHelp = err && err.code === 1 ? t("geoDeniedHelp") : "";
 }
 
 async function reverseName(lat, lon) {
@@ -439,19 +466,26 @@ async function reverseName(lat, lon) {
 }
 
 async function useCurrentLocation() {
-  if (!navigator.geolocation) {
-    $("meta").textContent = t("geoNone");
-    return;
-  }
-  $("meta").textContent = t("locating");
+  geoNote = t("locating");
+  geoHelp = "";
+  herePlace = {
+    id: HERE_ID,
+    name: t("here"),
+    club: t("locating"),
+    lat: herePlace?.lat,
+    lon: herePlace?.lon,
+    golf: false,
+  };
+  state.activeId = HERE_ID;
+  forecast = null;
+  status = "loading";
+  openDay = null;
+  radarOn = false;
+  hideRadar($("radar-wrap"));
+  $("radar-btn").textContent = t("radar");
+  render();
   try {
-    const pos = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 120000,
-      });
-    });
+    const pos = await readGps();
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
     let label = { name: t("here"), club: t("hereSub") };
@@ -469,15 +503,98 @@ async function useCurrentLocation() {
       golf: false,
     };
     saveHere(herePlace);
-    state.activeId = HERE_ID;
     persist();
-    openDay = null;
-    radarOn = false;
-    hideRadar($("radar-wrap"));
-    $("radar-btn").textContent = t("radar");
+    geoNote = "";
+    geoHelp = "";
     refresh(true);
   } catch (err) {
-    $("meta").textContent = geoError(err);
+    herePlace = {
+      ...herePlace,
+      name: t("here"),
+      club: geoError(err),
+    };
+    showGeoIssue(err);
+    status = "error";
+    render();
+  }
+}
+
+async function applyGpsToAdd() {
+  const btn = $("add-gps-btn");
+  const picked = $("add-picked");
+  btn.disabled = true;
+  picked.hidden = false;
+  picked.textContent = t("locating");
+  try {
+    const pos = await readGps();
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    let label = { name: t("here"), club: t("hereSub") };
+    try {
+      label = await reverseName(lat, lon);
+    } catch {
+      /* name is optional */
+    }
+    $("add-lat").value = String(lat);
+    $("add-lon").value = String(lon);
+    $("add-where").value = label.club;
+    if (!$("add-name").value.trim()) $("add-name").value = label.name;
+    picked.textContent = t("gpsPicked", { name: label.name });
+    $("add-results").querySelectorAll(".search-hit").forEach((b) => b.classList.remove("picked"));
+    geoNote = "";
+    geoHelp = "";
+    try {
+      const golf = await nearestGolfCourse(lat, lon);
+      if (golf && golf.km <= 6) {
+        $("add-where").value = golf.name;
+        picked.textContent = t("golfNearby", { name: golf.name });
+        if (golf.km <= 2.5) $("add-golf").checked = true;
+      }
+    } catch {
+      /* OSM optional */
+    }
+  } catch (err) {
+    picked.textContent = geoError(err);
+    if (err && err.code === 1) {
+      geoNote = t("geoDenied");
+      geoHelp = t("geoDeniedHelp");
+      render();
+    }
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function applyGpsToEdit() {
+  const btn = $("edit-gps-btn");
+  const note = $("edit-gps-note");
+  const prevLat = Number($("edit-lat").value);
+  const prevLon = Number($("edit-lon").value);
+  btn.disabled = true;
+  note.hidden = false;
+  note.textContent = t("locating");
+  try {
+    const pos = await readGps();
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    $("edit-lat").value = String(lat);
+    $("edit-lon").value = String(lon);
+    const dist =
+      Number.isFinite(prevLat) && Number.isFinite(prevLon)
+        ? fmtDist(kmBetween(prevLat, prevLon, lat, lon))
+        : "";
+    note.textContent = dist ? t("gpsMoved", { dist }) : t("gpsPicked", { name: t("here") });
+    geoNote = "";
+    geoHelp = "";
+  } catch (err) {
+    note.textContent = geoError(err);
+    if (err && err.code === 1) {
+      geoNote = t("geoDenied");
+      geoHelp = t("geoDeniedHelp");
+      render();
+    }
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -637,8 +754,11 @@ document.addEventListener("click", (e) => {
     $("add-picked").hidden = true;
     $("add-picked").textContent = "";
     $("add-golf").checked = false;
+    $("add-gps-btn").disabled = false;
     $("add-sheet").showModal();
   }
+  if (act === "export-places") exportPlaces();
+  if (act === "import-places") $("import-file").click();
   if (act === "radar") {
     radarOn = !radarOn;
     $("radar-btn").textContent = radarOn ? t("hideRadar") : t("radar");
@@ -681,6 +801,11 @@ $("places-list").addEventListener("click", (e) => {
     $("edit-id").value = c.id;
     $("edit-name").value = c.name;
     $("edit-club").value = c.club || "";
+    $("edit-lat").value = String(c.lat);
+    $("edit-lon").value = String(c.lon);
+    $("edit-gps-note").hidden = true;
+    $("edit-gps-note").textContent = "";
+    $("edit-gps-btn").disabled = false;
     $("edit-place").showModal();
     return;
   }
@@ -722,6 +847,8 @@ $("places-list").addEventListener("click", (e) => {
 
 $("add-search-btn").addEventListener("click", () => searchPlaces(false));
 $("add-search-world").addEventListener("click", () => searchPlaces(true));
+$("add-gps-btn").addEventListener("click", () => applyGpsToAdd());
+$("edit-gps-btn").addEventListener("click", () => applyGpsToEdit());
 $("add-search").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
@@ -880,12 +1007,108 @@ $("edit-save").addEventListener("click", () => {
   const c = state.courses.find((x) => x.id === id);
   const name = $("edit-name").value.trim();
   if (!c || !name) return;
+  const lat = Number($("edit-lat").value);
+  const lon = Number($("edit-lon").value);
+  const moved =
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    (Math.abs(c.lat - lat) > 1e-6 || Math.abs(c.lon - lon) > 1e-6);
   c.name = name;
   c.club = $("edit-club").value.trim();
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    c.lat = lat;
+    c.lon = lon;
+  }
   persist();
   $("edit-place").close();
   renderPlaces();
+  if (moved) {
+    clearForecast(c.id);
+    if (state.activeId === c.id) {
+      forecast = null;
+      refresh(true);
+      return;
+    }
+  }
   render();
+});
+
+function setPlacesNote(msg) {
+  const el = $("places-note");
+  el.hidden = !msg;
+  el.textContent = msg || "";
+}
+
+function isIos() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function downloadPlaces(file) {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file.name;
+  a.rel = "noopener";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+async function exportPlaces() {
+  const json = JSON.stringify(snapshot(state, herePlace), null, 2);
+  const file = new File([json], "golf-outlook-places.json", { type: "application/json" });
+  if (isIos() && navigator.canShare) {
+    const candidates = [
+      file,
+      new File([json], "golf-outlook-places.json", { type: "text/plain" }),
+    ];
+    for (const f of candidates) {
+      try {
+        if (navigator.canShare({ files: [f] })) {
+          await navigator.share({ files: [f], title: t("exportPlaces") });
+          setPlacesNote(t("exportShared"));
+          return;
+        }
+      } catch (err) {
+        if (err && err.name === "AbortError") return;
+      }
+    }
+  }
+  downloadPlaces(file);
+  setPlacesNote(t("exportPlaces"));
+}
+
+function applyImported(next) {
+  state.courses = next.courses;
+  state.activeId = next.activeId;
+  state.tees = next.tees;
+  state.expanded = next.expanded;
+  herePlace = next.here;
+  saveHere(herePlace);
+  persist();
+  forecast = loadForecast(state.activeId);
+  openDay = null;
+  if (radarOn) {
+    radarOn = false;
+    hideRadar($("radar-wrap"));
+    $("radar-btn").textContent = t("radar");
+  }
+  renderPlaces();
+  render();
+  $("places").showModal();
+  setPlacesNote(t("importOk"));
+  refresh(false);
+}
+
+$("import-file").addEventListener("change", async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    applyImported(parseSnapshot(await file.text()));
+  } catch {
+    setPlacesNote(t("importFail"));
+  }
 });
 
 $("add-save").addEventListener("click", () => {
@@ -909,10 +1132,6 @@ $("add-save").addEventListener("click", () => {
 });
 
 $("day-sheet").addEventListener("close", () => {
-  if (daySparkRaf) {
-    cancelAnimationFrame(daySparkRaf);
-    daySparkRaf = 0;
-  }
   openDay = null;
   daySparkHour = "";
 });

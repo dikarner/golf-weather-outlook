@@ -62,32 +62,71 @@ function blank() {
   };
 }
 
+function normalizeHere(h) {
+  if (!h || typeof h !== "object") return null;
+  const lat = Number(h.lat);
+  const lon = Number(h.lon);
+  const name = String(h.name || "");
+  if (!name || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return {
+    id: HERE_ID,
+    name,
+    club: String(h.club || ""),
+    lat,
+    lon,
+    golf: !!h.golf,
+  };
+}
+
+export function fromParsed(parsed, here) {
+  const courses =
+    Array.isArray(parsed?.courses) && parsed.courses.length
+      ? parsed.courses
+      : structuredClone(SEED_COURSES);
+  const seedIds = new Set(SEED_COURSES.map((s) => s.id));
+  const state = {
+    courses: courses.map((c) => ({
+      ...c,
+      golf: typeof c.golf === "boolean" ? c.golf : seedIds.has(c.id),
+    })),
+    activeId: String(parsed?.activeId || ""),
+    tees: parsed?.tees && typeof parsed.tees === "object" ? parsed.tees : {},
+    expanded:
+      parsed?.expanded && typeof parsed.expanded === "object" ? parsed.expanded : {},
+  };
+  const hereOk = state.activeId === HERE_ID && here;
+  if (!hereOk && !state.courses.some((c) => c.id === state.activeId)) {
+    state.activeId = state.courses[0].id;
+  }
+  return state;
+}
+
 export function loadState() {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return blank();
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed.courses) || !parsed.courses.length) {
-      parsed.courses = structuredClone(SEED_COURSES);
-    }
-    const seedIds = new Set(SEED_COURSES.map((s) => s.id));
-    parsed.courses = parsed.courses.map((c) => ({
-      ...c,
-      golf: typeof c.golf === "boolean" ? c.golf : seedIds.has(c.id),
-    }));
-    const hereOk = parsed.activeId === HERE_ID && loadHere();
-    if (
-      !hereOk &&
-      !parsed.courses.some((c) => c.id === parsed.activeId)
-    ) {
-      parsed.activeId = parsed.courses[0].id;
-    }
-    parsed.tees = parsed.tees || {};
-    parsed.expanded = parsed.expanded || {};
-    return parsed;
+    return fromParsed(JSON.parse(raw), loadHere());
   } catch {
     return blank();
   }
+}
+
+export function snapshot(state, here) {
+  return {
+    v: 1,
+    courses: state.courses,
+    activeId: state.activeId,
+    tees: state.tees,
+    expanded: state.expanded,
+    here: here || null,
+  };
+}
+
+export function parseSnapshot(text) {
+  const parsed = JSON.parse(text);
+  if (!parsed || !Array.isArray(parsed.courses)) throw new Error("bad snapshot");
+  const here = normalizeHere(parsed.here);
+  return { ...fromParsed(parsed, here), here };
 }
 
 export function saveState(state) {
@@ -116,6 +155,10 @@ export function saveForecast(courseId, data) {
 
 export function saveHere(place) {
   try {
+    if (!place) {
+      localStorage.removeItem(HERE_KEY);
+      return;
+    }
     localStorage.setItem(HERE_KEY, JSON.stringify(place));
   } catch {
     /* quota */

@@ -63,9 +63,15 @@
         <h2 data-i18n="places">Orte</h2>
         <button class="btn ghost" data-act="close" type="button" data-i18n="close">Schließen</button>
       </div>
-      <p class="hint" data-i18n="placesHint">Golfplätze oder Orte. Öffnen setzt den aktuellen Ort (Atzenbrugg ist der Standard nach einer Neuinstallation).</p>
+      <p class="hint" data-i18n="placesHint">Golfplätze oder Orte. Jedes Gerät speichert getrennt (auch Safari und die Home-Screen-App). Sichern, Datei auf das andere Gerät schicken (AirDrop), dann Laden.</p>
       <div id="places-list"></div>
-      <p><button class="btn primary" data-act="add-course" type="button" data-i18n="addPlace">Ort hinzufügen</button></p>
+      <p>
+        <button class="btn primary" data-act="add-course" type="button" data-i18n="addPlace">Ort hinzufügen</button>
+        <button class="btn" data-act="export-places" type="button" data-i18n="exportPlaces">Sichern</button>
+        <button class="btn" data-act="import-places" type="button" data-i18n="importPlaces">Laden</button>
+        <input id="import-file" type="file" accept="application/json,.json,text/plain" hidden />
+      </p>
+      <p class="hint" id="places-note" hidden></p>
     </dialog>
 
     <dialog id="add-sheet">
