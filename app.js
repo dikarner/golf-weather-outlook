@@ -72,7 +72,7 @@ function badge(modelId) {
   if (!modelId || modelId === "icon_d2") return "";
   if (modelId === MIX_ID) return `<span class="badge mix">${t("mix")}</span>`;
   const m = modelById(modelId);
-  const cls = modelId === "ecmwf_ifs025" ? "ifs" : "eu";
+  const cls = m?.short === "IFS" ? "ifs" : "eu";
   return `<span class="badge ${cls}">${m?.short || modelId}</span>`;
 }
 
@@ -643,7 +643,7 @@ function renderModelsInfo() {
     return `<tr><th>${m.short}</th>${cells}</tr>`;
   }).join("");
   const about = MODELS.map(
-    (m) => `<h3>${m.name} <span class="badge ${m.id === "ecmwf_ifs025" ? "ifs" : m.short === "D2" ? "" : "eu"}">${m.short}</span></h3>
+    (m) => `<h3>${m.name} <span class="badge ${m.short === "IFS" ? "ifs" : m.short === "D2" ? "" : "eu"}">${m.short}</span></h3>
       <p class="hint">${t(`modelAbout_${m.short}`)}</p>`
   ).join("");
   $("models-info-body").innerHTML = `

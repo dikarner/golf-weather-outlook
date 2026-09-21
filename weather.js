@@ -2,9 +2,11 @@ import { t, locale, lang } from "./i18n.js";
 
 export const MODELS = [
   { id: "icon_d2", short: "D2", name: "ICON-D2" },
-  { id: "icon_eu", short: "EU", name: "ICON-EU" },
+  { id: "geosphere_arome_austria", short: "ARO", name: "AROME Austria" },
   { id: "chmi_aladin_central_europe_2km", short: "ALD", name: "ALADIN" },
-  { id: "ecmwf_ifs025", short: "IFS", name: "ECMWF IFS" },
+  { id: "meteoswiss_icon_ch2", short: "CH2", name: "ICON-CH2" },
+  { id: "icon_eu", short: "EU", name: "ICON-EU" },
+  { id: "ecmwf_ifs", short: "IFS", name: "ECMWF IFS" },
 ];
 
 export const MIX_ID = "mix";
@@ -12,26 +14,31 @@ export const MIX_ID = "mix";
 /**
  * Relative mix weights by days ahead (0 = today in Vienna).
  * 0 = leave that model out of the mix (it still appears under + All models).
- * Native ranges via Open-Meteo: D2 ~2 d, ALADIN ~3 d, ICON-EU ~5 d, IFS ~15 d.
+ * Native ranges via Open-Meteo: D2 ~2 d, AROME ~2.5 d, ALADIN ~3 d,
+ * ICON-CH2 ~5 d, ICON-EU ~5 d, IFS HRES ~15 d.
  *
  *  today  +1  +2  +3  +4  +5   then +6… IFS only
  * D2    5   4   1   —   —   —
+ * ARO   4   4   2   —   —   —
  * ALD   3   3   3   1   —   —
- * EU    2   2   4   4   4   2
+ * CH2   3   3   4   4   3   —
+ * EU    2   2   3   3   4   2
  * IFS   1   1   2   2   3   4
  */
 const WEIGHTS = {
   icon_d2: [5, 4, 1, 0, 0, 0],
-  icon_eu: [2, 2, 4, 4, 4, 2],
+  geosphere_arome_austria: [4, 4, 2, 0, 0, 0],
   chmi_aladin_central_europe_2km: [3, 3, 3, 1, 0, 0],
-  ecmwf_ifs025: [1, 1, 2, 2, 3, 4],
+  meteoswiss_icon_ch2: [3, 3, 4, 4, 3, 0],
+  icon_eu: [2, 2, 3, 3, 4, 2],
+  ecmwf_ifs: [1, 1, 2, 2, 3, 4],
 };
 
 export function modelWeight(modelId, daysAhead) {
   const row = WEIGHTS[modelId];
   if (!row) return 0;
   const d = Math.max(0, daysAhead);
-  if (d >= 6) return modelId === "ecmwf_ifs025" ? 1 : 0;
+  if (d >= 6) return modelId === "ecmwf_ifs" ? 1 : 0;
   return row[d] ?? 0;
 }
 

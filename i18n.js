@@ -24,12 +24,14 @@ const de = {
   modelsInfoCodes:
     "Sonne, Nebel und Gewitter werden nicht gemittelt. Gewitter oder Nebel gelten, sobald ein Modell im Mix sie zeigt.",
   modelsInfoPop:
-    "Regenwahrscheinlichkeit (%) kommt aus den Ensemble-Läufen von ICON-D2, ICON-EU und IFS. ALADIN liefert keine %.",
+    "Regenwahrscheinlichkeit (%) kommt aus den Ensemble-Läufen von ICON-D2, ICON-CH2, ICON-EU und IFS. ALADIN und AROME liefern keine %.",
   modelsInfoWeights: "Gewichte nach Tagen (nur Modelle mit Daten)",
   modelAbout_D2: "DWD, ~2 km, ~2 Tage. Heute und morgen der Hauptbeitrag. Gut für lokale Schauer in Österreich.",
+  modelAbout_ARO: "GeoSphere Austria, ~2,5 km, ~2,5 Tage. Österreichisches Alpenmodell, andere Physik als ICON.",
   modelAbout_EU: "DWD, ~7 km, ~5 Tage. Die Brücke für die Tage 2–5.",
   modelAbout_ALD: "CHMI, ~2 km, ~3 Tage. Besonders nützlich in Ostösterreich, Burgenland und Ungarn.",
-  modelAbout_IFS: "ECMWF, ~25 km, ~15 Tage. Ab Tag 6 praktisch allein.",
+  modelAbout_CH2: "MeteoSwiss, ~2 km, ~5 Tage. Feines Gitter nach dem Ende von D2, mit Ensemble-Regen-%.",
+  modelAbout_IFS: "ECMWF IFS HRES, ~9 km, ~15 Tage. Ab Tag 6 praktisch allein.",
   golfPlace: "Golfplatz",
   golfPlaceHint: "Golfplatz — Abschlagzeit und Rundenfenster anzeigen",
   golfInfoTitle: "Golfplatz-Häkchen",
@@ -110,7 +112,7 @@ const de = {
   radarFail: "Radar konnte nicht geladen werden",
   radarNone: "Keine Radarbilder",
   footer:
-    "Prognosen: DWD ICON-D2 / ICON-EU, CHMI ALADIN, ECMWF IFS über Open-Meteo (CC BY). Radar: RainViewer. Persönliche Nutzung.",
+    "Prognosen: DWD ICON-D2 / ICON-EU, GeoSphere AROME, MeteoSwiss ICON-CH2, CHMI ALADIN, ECMWF IFS über Open-Meteo (CC BY). Radar: RainViewer. Persönliche Nutzung.",
 };
 
 const en = {
@@ -139,12 +141,14 @@ const en = {
   modelsInfoCodes:
     "Sun, fog and storm are not averaged. Storm or fog counts as soon as any model in the mix shows it.",
   modelsInfoPop:
-    "Rain probability (%) comes from the ICON-D2, ICON-EU and IFS ensembles. ALADIN has no %.",
+    "Rain probability (%) comes from the ICON-D2, ICON-CH2, ICON-EU and IFS ensembles. ALADIN and AROME have no %.",
   modelsInfoWeights: "Weights by day (only models that have data)",
   modelAbout_D2: "DWD, ~2 km, ~2 days. Main contribution today and tomorrow. Good for local showers in Austria.",
+  modelAbout_ARO: "GeoSphere Austria, ~2.5 km, ~2.5 days. Austrian Alpine model, different physics from ICON.",
   modelAbout_EU: "DWD, ~7 km, ~5 days. The bridge for days 2–5.",
   modelAbout_ALD: "CHMI, ~2 km, ~3 days. Especially useful in eastern Austria, Burgenland and Hungary.",
-  modelAbout_IFS: "ECMWF, ~25 km, ~15 days. From day 6 almost on its own.",
+  modelAbout_CH2: "MeteoSwiss, ~2 km, ~5 days. Fine grid after D2 ends, with ensemble rain %.",
+  modelAbout_IFS: "ECMWF IFS HRES, ~9 km, ~15 days. From day 6 almost on its own.",
   golfPlace: "Golf course",
   golfPlaceHint: "Golf course — show tee time and round window",
   golfInfoTitle: "Golf course tick",
@@ -225,7 +229,7 @@ const en = {
   radarFail: "Radar map failed to load",
   radarNone: "No radar frames",
   footer:
-    "Forecasts: DWD ICON-D2 / ICON-EU, CHMI ALADIN, ECMWF IFS via Open-Meteo (CC BY). Radar: RainViewer. Personal use.",
+    "Forecasts: DWD ICON-D2 / ICON-EU, GeoSphere AROME, MeteoSwiss ICON-CH2, CHMI ALADIN, ECMWF IFS via Open-Meteo (CC BY). Radar: RainViewer. Personal use.",
 };
 
 const nav = (typeof navigator !== "undefined" && (navigator.language || navigator.userLanguage)) || "en";
